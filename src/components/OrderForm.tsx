@@ -43,7 +43,7 @@ export default function OrderForm({ initialData, onSubmit, cartItems, totalUnits
   const [form, setForm] = useState<FormData>(initialData);
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
   const streetRef = useRef<HTMLInputElement>(null);
-  const autocompleteRef = useRef<ReturnType<NonNullable<NonNullable<Window['google']>['maps']>['places']>['Autocomplete']['prototype'] | null>(null);
+  const autocompleteRef = useRef<{ addListener: (e: string, h: () => void) => void; getPlace: () => { formatted_address?: string; address_components?: Array<{ long_name: string; short_name: string; types: string[] }> } } | null>(null);
   const [googleLoaded, setGoogleLoaded] = useState(false);
 
   // Load Google Places if key is available
