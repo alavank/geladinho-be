@@ -1,9 +1,3 @@
-// ============================================================
-// Domain Types
-// ============================================================
-
-export type PaymentMethod = 'dinheiro' | 'cartao' | 'transferencia';
-
 export type OrderStatus = 'novo' | 'em_preparo' | 'em_rota' | 'entregue' | 'cancelado';
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
@@ -14,12 +8,6 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   cancelado: 'Cancelado',
 };
 
-export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
-  dinheiro: 'Dinheiro',
-  cartao: 'Cartão',
-  transferencia: 'Transferência Bancária',
-};
-
 export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
   novo: 'bg-blue-100 text-blue-800',
   em_preparo: 'bg-yellow-100 text-yellow-800',
@@ -28,28 +16,17 @@ export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
   cancelado: 'bg-red-100 text-red-800',
 };
 
-// ============================================================
-// Flavor
-// ============================================================
 export interface Flavor {
   id: string;
   name: string;
-  emoji: string;
-  color: string;
 }
 
-// ============================================================
-// Cart
-// ============================================================
 export interface CartItem {
   flavorId: string;
   flavorName: string;
   quantity: number;
 }
 
-// ============================================================
-// Order
-// ============================================================
 export interface OrderItem {
   id: string;
   order_id: string;
@@ -70,26 +47,25 @@ export interface Order {
   address_postal_code: string;
   address_city: string;
   address_country: string;
-  payment_method: PaymentMethod;
+  needs_change: boolean;
+  change_amount_eur_cents: number | null;
   notes: string | null;
   total_units: number;
   total_price_eur_cents: number;
+  freight_eur_cents: number;
   status: OrderStatus;
   order_items?: OrderItem[];
 }
 
-// ============================================================
-// API Payloads
-// ============================================================
 export interface CreateOrderPayload {
   customerName: string;
   customerPhone: string;
   addressStreet: string;
   addressNumber: string;
-  addressUnit?: string;
   addressPostalCode: string;
-  addressCity: string;
-  paymentMethod: PaymentMethod;
+  addressCommune: string;
+  needsChange: boolean;
+  changeAmountEurCents?: number;
   notes?: string;
   items: { flavorName: string; quantity: number }[];
 }

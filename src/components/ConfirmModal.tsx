@@ -1,7 +1,7 @@
 'use client';
 
 import { FormData } from '@/app/page';
-import { CartItem, PAYMENT_METHOD_LABELS } from '@/types';
+import { CartItem } from '@/types';
 import { formatEUR } from '@/lib/flavors';
 
 interface Props {
@@ -16,33 +16,27 @@ interface Props {
 }
 
 export default function ConfirmModal({
-  formData,
-  cartItems,
-  totalUnits,
-  totalCents,
-  onConfirm,
-  onBack,
-  submitting,
-  error,
+  formData, cartItems, totalUnits, totalCents,
+  onConfirm, onBack, submitting, error,
 }: Props) {
   const address = [
     `${formData.addressStreet}, ${formData.addressNumber}`,
-    formData.addressUnit ? formData.addressUnit : null,
-    `${formData.addressPostalCode} ${formData.addressCity}`,
+    formData.addressPostalCode,
+    formData.addressCommune,
     'Bélgica 🇧🇪',
-  ]
-    .filter(Boolean)
-    .join(' — ');
+  ].join(' — ');
+
+  const changeAmountEur = formData.changeAmount
+    ? parseFloat(formData.changeAmount.replace(',', '.'))
+    : null;
+  const trocoValue = changeAmountEur ? changeAmountEur - totalCents / 100 : null;
 
   return (
     <div className="max-w-lg mx-auto">
       <h2 className="text-2xl font-bold text-gray-900 mb-6">✅ Confirmar Pedido</h2>
 
-      {/* Customer info */}
       <div className="card p-5 mb-4">
-        <h3 className="font-bold text-gray-700 text-sm uppercase tracking-wide mb-3">
-          Dados do Cliente
-        </h3>
+        <h3 className="font-bold text-gray-700 text-sm uppercase tracking-wide mb-3">Dados do Cliente</h3>
         <dl className="space-y-2 text-sm">
           <div className="flex gap-2">
             <dt className="text-gray-500 w-24 shrink-0">Nome:</dt>
@@ -50,19 +44,18 @@ export default function ConfirmModal({
           </div>
           <div className="flex gap-2">
             <dt className="text-gray-500 w-24 shrink-0">Telefone:</dt>
-            <dd className="font-semibold text-gray-900">
-              {formData.customerPhone}{' '}
-              <span className="text-green-600 text-xs">WhatsApp</span>
-            </dd>
+            <dd className="font-semibold text-gray-900">{formData.customerPhone} <span className="text-green-600 text-xs">WhatsApp</span></dd>
           </div>
           <div className="flex gap-2">
             <dt className="text-gray-500 w-24 shrink-0">Endereço:</dt>
             <dd className="font-semibold text-gray-900">{address}</dd>
           </div>
           <div className="flex gap-2">
-            <dt className="text-gray-500 w-24 shrink-0">Pagamento:</dt>
+            <dt className="text-gray-500 w-24 shrink-0">Troco:</dt>
             <dd className="font-semibold text-gray-900">
-              {PAYMENT_METHOD_LABELS[formData.paymentMethod]}
+              {formData.needsChange
+                ? `Sim — tem € ${formData.changeAmount} em mãos${trocoValue && trocoValue > 0 ? ` (troco: € ${trocoValue.toFixed(2)})` : ''}`
+                : 'Não precisa'}
             </dd>
           </div>
           {formData.notes && (
@@ -74,11 +67,8 @@ export default function ConfirmModal({
         </dl>
       </div>
 
-      {/* Items */}
       <div className="card p-5 mb-4">
-        <h3 className="font-bold text-gray-700 text-sm uppercase tracking-wide mb-3">
-          Itens do Pedido
-        </h3>
+        <h3 className="font-bold text-gray-700 text-sm uppercase tracking-wide mb-3">Itens do Pedido</h3>
         <ul className="space-y-2">
           {cartItems.map((item) => (
             <li key={item.flavorId} className="flex justify-between text-sm">
@@ -106,11 +96,7 @@ export default function ConfirmModal({
       )}
 
       <div className="flex gap-3">
-        <button
-          onClick={onBack}
-          disabled={submitting}
-          className="btn-secondary flex-1"
-        >
+        <button onClick={onBack} disabled={submitting} className="btn-secondary flex-1">
           ← Editar
         </button>
         <button
@@ -118,13 +104,7 @@ export default function ConfirmModal({
           disabled={submitting}
           className="btn-primary flex-1 flex items-center justify-center gap-2"
         >
-          {submitting ? (
-            <>
-              <span className="animate-spin">⏳</span> Enviando...
-            </>
-          ) : (
-            '🧊 Confirmar pedido'
-          )}
+          {submitting ? <><span className="animate-spin">⏳</span> Enviando...</> : '🧊 Confirmar pedido'}
         </button>
       </div>
     </div>

@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { FormData } from '@/app/page';
-import { CartItem, PaymentMethod, PAYMENT_METHOD_LABELS } from '@/types';
+import { CartItem } from '@/types';
 import { formatEUR } from '@/lib/flavors';
 import { isValidBelgianPhone } from '@/lib/phone';
 
@@ -14,117 +14,30 @@ interface Props {
   totalCents: number;
 }
 
-declare global {
-  interface Window {
-    google?: {
-      maps?: {
-        places?: {
-          Autocomplete: new (
-            input: HTMLInputElement,
-            options?: object
-          ) => {
-            addListener: (event: string, handler: () => void) => void;
-            getPlace: () => {
-              formatted_address?: string;
-              address_components?: Array<{
-                long_name: string;
-                short_name: string;
-                types: string[];
-              }>;
-            };
-          };
-        };
-      };
-    };
-  }
-}
-
 export default function OrderForm({ initialData, onSubmit, cartItems, totalUnits, totalCents }: Props) {
   const [form, setForm] = useState<FormData>(initialData);
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
-  const streetRef = useRef<HTMLInputElement>(null);
-  const autocompleteRef = useRef<{ addListener: (e: string, h: () => void) => void; getPlace: () => { formatted_address?: string; address_components?: Array<{ long_name: string; short_name: string; types: string[] }> } } | null>(null);
-  const [googleLoaded, setGoogleLoaded] = useState(false);
 
-  // Load Google Places if key is available
-  useEffect(() => {
-    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY;
-    if (!apiKey || typeof window === 'undefined') return;
-    if (window.google?.maps?.places) {
-      setGoogleLoaded(true);
-      return;
-    }
-
-    const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
-    script.async = true;
-    script.onload = () => setGoogleLoaded(true);
-    document.head.appendChild(script);
-  }, []);
-
-  useEffect(() => {
-    if (!googleLoaded || !streetRef.current || !window.google?.maps?.places) return;
-
-    autocompleteRef.current = new window.google.maps.places.Autocomplete(streetRef.current, {
-      componentRestrictions: { country: 'be' },
-      types: ['address'],
-    });
-
-    autocompleteRef.current.addListener('place_changed', () => {
-      const place = autocompleteRef.current?.getPlace();
-      if (!place?.address_components) return;
-
-      let street = '';
-      let streetNumber = '';
-      let postalCode = '';
-      let city = '';
-
-      for (const component of place.address_components) {
-        if (component.types.includes('route')) street = component.long_name;
-        if (component.types.includes('street_number')) streetNumber = component.long_name;
-        if (component.types.includes('postal_code')) postalCode = component.long_name;
-        if (component.types.includes('locality')) city = component.long_name;
-      }
-
-      setForm((prev) => ({
-        ...prev,
-        addressStreet: street,
-        addressNumber: streetNumber,
-        addressPostalCode: postalCode,
-        addressCity: city,
-      }));
-    });
-  }, [googleLoaded]);
-
-  const set = (field: keyof FormData, value: string) => {
+  const set = (field: keyof FormData, value: string | boolean) => {
     setForm((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: '' }));
   };
 
   const validate = (): boolean => {
-    const newErrors: Partial<Record<keyof FormData, string>> = {};
-
-    if (!form.customerName.trim() || form.customerName.trim().length < 2) {
-      newErrors.customerName = 'Nome completo obrigatório (mín. 2 caracteres)';
-    }
-    if (!isValidBelgianPhone(form.customerPhone)) {
-      newErrors.customerPhone = 'Número de telefone belga inválido (ex: +32 470 12 34 56)';
-    }
-    if (!form.addressStreet.trim()) {
-      newErrors.addressStreet = 'Rua obrigatória';
-    }
-    if (!form.addressNumber.trim()) {
-      newErrors.addressNumber = 'Número obrigatório';
-    }
-    if (!/^\d{4}$/.test(form.addressPostalCode.trim())) {
-      newErrors.addressPostalCode = 'Código postal belga deve ter 4 dígitos';
-    }
-    if (!form.addressCity.trim()) {
-      newErrors.addressCity = 'Cidade obrigatória';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    const e: Partial<Record<keyof FormData, string>> = {};
+    if (!form.customerName.trim() || form.customerName.trim().length < 2)
+      e.customerName = 'Nome completo obrigatório';
+    if (!isValidBelgianPhone(form.customerPhone))
+      e.customerPhone = 'Número belga inválido (ex: +32 470 12 34 56)';
+    if (!form.addressStreet.trim()) e.addressStreet = 'Rua obrigatória';
+    if (!form.addressNumber.trim()) e.addressNumber = 'Número obrigatório';
+    if (!/^\d{4}$/.test(form.addressPostalCode.trim()))
+      e.addressPostalCode = 'Código postal deve ter 4 dígitos';
+    if (!form.addressCommune.trim()) e.addressCommune = 'Comuna obrigatória';
+    if (form.needsChange && !form.changeAmount.trim())
+      e.changeAmount = 'Informe o valor que você tem em mãos';
+    setErrors(e);
+    return Object.keys(e).length === 0;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -132,37 +45,35 @@ export default function OrderForm({ initialData, onSubmit, cartItems, totalUnits
     if (validate()) onSubmit(form);
   };
 
-  const errorClass = (field: keyof FormData) =>
+  const err = (field: keyof FormData) =>
     errors[field] ? 'border-red-400 focus:ring-red-400' : '';
 
   return (
     <div>
       <h2 className="text-2xl font-bold text-gray-900 mb-6">📋 Seus Dados</h2>
-
       <form onSubmit={handleSubmit} noValidate>
-        {/* Personal info */}
+
+        {/* Dados pessoais */}
         <div className="card p-5 mb-5">
           <h3 className="font-bold text-gray-800 mb-4 text-lg">👤 Informações Pessoais</h3>
           <div className="space-y-4">
             <div>
               <label className="label">Nome completo *</label>
               <input
-                className={`input-field ${errorClass('customerName')}`}
+                className={`input-field ${err('customerName')}`}
                 placeholder="Ex: Maria Silva"
                 value={form.customerName}
                 onChange={(e) => set('customerName', e.target.value)}
               />
               {errors.customerName && <p className="text-red-500 text-xs mt-1">{errors.customerName}</p>}
             </div>
-
             <div>
               <label className="label">
-                Telefone (Bélgica) *{' '}
-                <span className="text-brand-600 font-normal text-xs">📱 WhatsApp</span>
+                Telefone (Bélgica) * <span className="text-brand-600 font-normal text-xs">📱 WhatsApp</span>
               </label>
               <input
-                className={`input-field ${errorClass('customerPhone')}`}
-                placeholder="Ex: +32 470 12 34 56 ou 0470 12 34 56"
+                className={`input-field ${err('customerPhone')}`}
+                placeholder="+32 470 12 34 56"
                 value={form.customerPhone}
                 onChange={(e) => set('customerPhone', e.target.value)}
                 type="tel"
@@ -173,115 +84,107 @@ export default function OrderForm({ initialData, onSubmit, cartItems, totalUnits
           </div>
         </div>
 
-        {/* Address */}
+        {/* Endereço */}
         <div className="card p-5 mb-5">
           <h3 className="font-bold text-gray-800 mb-4 text-lg">📍 Endereço de Entrega</h3>
           <div className="space-y-4">
             <div>
-              <label className="label">Rua *{googleLoaded && <span className="text-xs font-normal text-green-600 ml-2">✓ Autocomplete ativo</span>}</label>
+              <label className="label">Rue, Avenue, Chaussée... *</label>
               <input
-                ref={streetRef}
-                className={`input-field ${errorClass('addressStreet')}`}
+                className={`input-field ${err('addressStreet')}`}
                 placeholder="Ex: Rue de la Loi"
                 value={form.addressStreet}
                 onChange={(e) => set('addressStreet', e.target.value)}
               />
               {errors.addressStreet && <p className="text-red-500 text-xs mt-1">{errors.addressStreet}</p>}
             </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="label">Número *</label>
-                <input
-                  className={`input-field ${errorClass('addressNumber')}`}
-                  placeholder="Ex: 16"
-                  value={form.addressNumber}
-                  onChange={(e) => set('addressNumber', e.target.value)}
-                />
-                {errors.addressNumber && <p className="text-red-500 text-xs mt-1">{errors.addressNumber}</p>}
-              </div>
-              <div>
-                <label className="label">Apto / Complemento</label>
-                <input
-                  className="input-field"
-                  placeholder="Ex: Apt 3B"
-                  value={form.addressUnit}
-                  onChange={(e) => set('addressUnit', e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="label">Código Postal *</label>
-                <input
-                  className={`input-field ${errorClass('addressPostalCode')}`}
-                  placeholder="Ex: 1000"
-                  value={form.addressPostalCode}
-                  onChange={(e) => set('addressPostalCode', e.target.value.replace(/\D/g, ''))}
-                  maxLength={4}
-                  inputMode="numeric"
-                />
-                {errors.addressPostalCode && <p className="text-red-500 text-xs mt-1">{errors.addressPostalCode}</p>}
-              </div>
-              <div>
-                <label className="label">Cidade *</label>
-                <input
-                  className={`input-field ${errorClass('addressCity')}`}
-                  placeholder="Ex: Bruxelles"
-                  value={form.addressCity}
-                  onChange={(e) => set('addressCity', e.target.value)}
-                />
-                {errors.addressCity && <p className="text-red-500 text-xs mt-1">{errors.addressCity}</p>}
-              </div>
-            </div>
-
             <div>
-              <label className="label">País</label>
+              <label className="label">Número *</label>
               <input
-                className="input-field bg-gray-50 text-gray-500 cursor-not-allowed"
-                value="🇧🇪 Bélgica"
-                readOnly
+                className={`input-field ${err('addressNumber')}`}
+                placeholder="Ex: 16"
+                value={form.addressNumber}
+                onChange={(e) => set('addressNumber', e.target.value)}
               />
+              {errors.addressNumber && <p className="text-red-500 text-xs mt-1">{errors.addressNumber}</p>}
+            </div>
+            <div>
+              <label className="label">Código Postal *</label>
+              <input
+                className={`input-field ${err('addressPostalCode')}`}
+                placeholder="Ex: 1000"
+                value={form.addressPostalCode}
+                onChange={(e) => set('addressPostalCode', e.target.value.replace(/\D/g, ''))}
+                maxLength={4}
+                inputMode="numeric"
+              />
+              {errors.addressPostalCode && <p className="text-red-500 text-xs mt-1">{errors.addressPostalCode}</p>}
+            </div>
+            <div>
+              <label className="label">Comuna *</label>
+              <input
+                className={`input-field ${err('addressCommune')}`}
+                placeholder="Ex: Bruxelles, Liège, Anderlecht..."
+                value={form.addressCommune}
+                onChange={(e) => set('addressCommune', e.target.value)}
+              />
+              {errors.addressCommune && <p className="text-red-500 text-xs mt-1">{errors.addressCommune}</p>}
             </div>
           </div>
         </div>
 
-        {/* Payment */}
+        {/* Troco */}
         <div className="card p-5 mb-5">
-          <h3 className="font-bold text-gray-800 mb-4 text-lg">💳 Forma de Pagamento</h3>
-          <div className="space-y-3">
-            {(['dinheiro', 'cartao', 'transferencia'] as PaymentMethod[]).map((method) => (
+          <h3 className="font-bold text-gray-800 mb-4 text-lg">💶 Pagamento</h3>
+          <p className="text-gray-600 text-sm mb-4">Precisa de troco?</p>
+          <div className="flex gap-3 mb-4">
+            {[
+              { value: false, label: 'Não', icon: '✅' },
+              { value: true, label: 'Sim', icon: '💵' },
+            ].map((opt) => (
               <label
-                key={method}
-                className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
-                  form.paymentMethod === method
+                key={String(opt.value)}
+                className={`flex-1 flex items-center gap-2 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                  form.needsChange === opt.value
                     ? 'border-brand-500 bg-brand-50'
                     : 'border-gray-200 hover:border-gray-300'
                 }`}
               >
                 <input
                   type="radio"
-                  name="paymentMethod"
-                  value={method}
-                  checked={form.paymentMethod === method}
-                  onChange={() => set('paymentMethod', method)}
+                  name="needsChange"
+                  checked={form.needsChange === opt.value}
+                  onChange={() => set('needsChange', opt.value)}
                   className="accent-brand-600"
                 />
-                <span className="font-medium text-gray-800">
-                  {method === 'dinheiro' && '💵 '}
-                  {method === 'cartao' && '💳 '}
-                  {method === 'transferencia' && '🏦 '}
-                  {PAYMENT_METHOD_LABELS[method]}
-                </span>
+                <span className="font-semibold text-gray-800">{opt.icon} {opt.label}</span>
               </label>
             ))}
           </div>
+
+          {form.needsChange && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+              <label className="label text-amber-800">
+                Qual valor você tem em mãos? (€) *
+              </label>
+              <input
+                className={`input-field mt-1 ${err('changeAmount')}`}
+                placeholder="Ex: 50 ou 100"
+                value={form.changeAmount}
+                onChange={(e) => set('changeAmount', e.target.value)}
+                inputMode="decimal"
+              />
+              {errors.changeAmount && <p className="text-red-500 text-xs mt-1">{errors.changeAmount}</p>}
+              <p className="text-xs text-amber-600 mt-2">
+                O entregador levará o troco necessário 💰
+              </p>
+            </div>
+          )}
         </div>
 
-        {/* Notes */}
+        {/* Observações */}
         <div className="card p-5 mb-5">
-          <h3 className="font-bold text-gray-800 mb-4 text-lg">📝 Observações</h3>
+          <h3 className="font-bold text-gray-800 mb-3 text-lg">📝 Observações</h3>
           <textarea
             className="input-field resize-none"
             rows={3}
@@ -291,14 +194,12 @@ export default function OrderForm({ initialData, onSubmit, cartItems, totalUnits
           />
         </div>
 
-        {/* Order summary mini */}
-        <div className="card p-4 mb-6 bg-brand-50 border-brand-200">
+        {/* Mini resumo */}
+        <div className="card p-4 mb-6 bg-brand-50 border border-brand-200">
           <div className="flex justify-between items-center">
             <div>
               <p className="text-sm text-brand-700 font-medium">{totalUnits} geladinhos</p>
-              <p className="text-xs text-brand-600">
-                {cartItems.length} sabore{cartItems.length !== 1 ? 's' : ''}
-              </p>
+              <p className="text-xs text-brand-600">{cartItems.length} sabore{cartItems.length !== 1 ? 's' : ''}</p>
             </div>
             <p className="text-xl font-bold text-brand-700">{formatEUR(totalCents)}</p>
           </div>

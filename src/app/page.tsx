@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import { FLAVORS, UNIT_PRICE_CENTS, MIN_ORDER_UNITS, formatEUR } from '@/lib/flavors';
-import { CartItem, PaymentMethod } from '@/types';
+import { CartItem } from '@/types';
 import FlavorCard from '@/components/FlavorCard';
 import OrderForm from '@/components/OrderForm';
 import ConfirmModal from '@/components/ConfirmModal';
@@ -17,10 +17,10 @@ export interface FormData {
   customerPhone: string;
   addressStreet: string;
   addressNumber: string;
-  addressUnit: string;
   addressPostalCode: string;
-  addressCity: string;
-  paymentMethod: PaymentMethod;
+  addressCommune: string;
+  needsChange: boolean;
+  changeAmount: string; // valor em euros que o cliente tem em mãos (string para input)
   notes: string;
 }
 
@@ -29,10 +29,10 @@ const EMPTY_FORM: FormData = {
   customerPhone: '',
   addressStreet: '',
   addressNumber: '',
-  addressUnit: '',
   addressPostalCode: '',
-  addressCity: '',
-  paymentMethod: 'dinheiro',
+  addressCommune: '',
+  needsChange: false,
+  changeAmount: '',
   notes: '',
 };
 
@@ -54,18 +54,11 @@ export default function HomePage() {
     [quantities]
   );
 
-  const totalUnits = useMemo(
-    () => cartItems.reduce((s, i) => s + i.quantity, 0),
-    [cartItems]
-  );
-
+  const totalUnits = useMemo(() => cartItems.reduce((s, i) => s + i.quantity, 0), [cartItems]);
   const totalCents = totalUnits * UNIT_PRICE_CENTS;
 
   const updateQuantity = useCallback((flavorId: string, value: number) => {
-    setQuantities((prev) => ({
-      ...prev,
-      [flavorId]: Math.max(0, value),
-    }));
+    setQuantities((prev) => ({ ...prev, [flavorId]: Math.max(0, value) }));
   }, []);
 
   const handleProceed = () => {
@@ -77,13 +70,17 @@ export default function HomePage() {
   const handleFormSubmit = (data: FormData) => {
     setFormData(data);
     setStep('confirm');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleConfirm = async () => {
     setSubmitting(true);
     setSubmitError('');
-
     try {
+      const changeAmountCents = formData.needsChange && formData.changeAmount
+        ? Math.round(parseFloat(formData.changeAmount.replace(',', '.')) * 100)
+        : undefined;
+
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -92,24 +89,17 @@ export default function HomePage() {
           customerPhone: formData.customerPhone,
           addressStreet: formData.addressStreet,
           addressNumber: formData.addressNumber,
-          addressUnit: formData.addressUnit || undefined,
           addressPostalCode: formData.addressPostalCode,
-          addressCity: formData.addressCity,
-          paymentMethod: formData.paymentMethod,
+          addressCommune: formData.addressCommune,
+          needsChange: formData.needsChange,
+          changeAmountEurCents: changeAmountCents,
           notes: formData.notes || undefined,
-          items: cartItems.map((i) => ({
-            flavorName: i.flavorName,
-            quantity: i.quantity,
-          })),
+          items: cartItems.map((i) => ({ flavorName: i.flavorName, quantity: i.quantity })),
         }),
       });
 
       const json = await res.json();
-
-      if (!res.ok) {
-        throw new Error(json.error || 'Erro ao enviar pedido');
-      }
-
+      if (!res.ok) throw new Error(json.error || 'Erro ao enviar pedido');
       setOrderId(json.orderId);
       setStep('success');
     } catch (err: unknown) {
@@ -119,13 +109,10 @@ export default function HomePage() {
     }
   };
 
-  if (step === 'success') {
-    return <SuccessScreen orderId={orderId} />;
-  }
+  if (step === 'success') return <SuccessScreen orderId={orderId} />;
 
   return (
     <div className="min-h-screen">
-      {/* Header */}
       <header className="bg-gradient-to-r from-brand-600 to-ice-500 text-white sticky top-0 z-40 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-3">
           <span className="text-3xl">🧊</span>
@@ -144,7 +131,6 @@ export default function HomePage() {
         </div>
       </header>
 
-      {/* Step indicator */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 py-2 flex gap-4 text-sm">
           {[
@@ -155,9 +141,7 @@ export default function HomePage() {
             <span
               key={s.key}
               className={`font-semibold ${
-                step === s.key
-                  ? 'text-brand-600 border-b-2 border-brand-600 pb-2'
-                  : 'text-gray-400'
+                step === s.key ? 'text-brand-600 border-b-2 border-brand-600 pb-2' : 'text-gray-400'
               }`}
             >
               {s.label}
@@ -166,29 +150,23 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Main content */}
-      <div className="max-w-7xl mx-auto px-4 py-6 lg:flex lg:gap-8">
-        {/* Left / Main area */}
+      <div className="max-w-7xl mx-auto px-4 py-6 lg:flex lg:gap-8 pb-32 lg:pb-6">
         <div className="flex-1">
           {step === 'catalog' && (
             <>
               <div className="mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">
-                  🍭 Escolha seus sabores
-                </h2>
+                <h2 className="text-2xl font-bold text-gray-900">🍭 Escolha seus sabores</h2>
                 <p className="text-gray-500 mt-1">
-                  Mínimo de {MIN_ORDER_UNITS} unidades por pedido.{' '}
-                  <span className="font-semibold text-brand-600">
-                    {formatEUR(UNIT_PRICE_CENTS)} cada
-                  </span>
+                  Mínimo de {MIN_ORDER_UNITS} unidades.{' '}
+                  <span className="font-semibold text-brand-600">{formatEUR(UNIT_PRICE_CENTS)} cada</span>
                 </p>
               </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                {FLAVORS.map((flavor) => (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                {FLAVORS.map((flavor, index) => (
                   <FlavorCard
                     key={flavor.id}
                     flavor={flavor}
+                    index={index}
                     quantity={quantities[flavor.id] || 0}
                     onQuantityChange={(val) => updateQuantity(flavor.id, val)}
                   />
@@ -221,7 +199,6 @@ export default function HomePage() {
           )}
         </div>
 
-        {/* Desktop sidebar */}
         {step === 'catalog' && (
           <DesktopSidebar
             cartItems={cartItems}
@@ -232,13 +209,8 @@ export default function HomePage() {
         )}
       </div>
 
-      {/* Mobile sticky cart */}
       {step === 'catalog' && (
-        <StickyCart
-          totalUnits={totalUnits}
-          totalCents={totalCents}
-          onProceed={handleProceed}
-        />
+        <StickyCart totalUnits={totalUnits} totalCents={totalCents} onProceed={handleProceed} />
       )}
     </div>
   );
