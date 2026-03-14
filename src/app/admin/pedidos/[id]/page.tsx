@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { Order, OrderStatus, ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from '@/types';
+import { Order, ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from '@/types';
 import { formatEUR } from '@/lib/flavors';
 
 function formatDate(dateStr: string): string {
