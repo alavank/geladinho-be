@@ -134,9 +134,9 @@ export default function AdminPage() {
                       <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
                         {order.address_city}
                       </td>
-                      <td className="px-4 py-3 text-gray-600 whitespace-nowrap text-xs">
-                        {PAYMENT_METHOD_LABELS[order.payment_method]}
-                      </td>
+                      <td className="px-4 py-3 text-center">
+  {order.needs_change ? <span className="text-amber-600 font-semibold text-xs">💵 Sim</span> : <span className="text-gray-400 text-xs">Não</span>}
+</td>
                       <td className="px-4 py-3 text-center font-semibold text-gray-900">
                         {order.total_units}
                       </td>
