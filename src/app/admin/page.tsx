@@ -3,11 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-<<<<<<< HEAD
-import { Order, ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from '@/types';
-=======
 import { Order, OrderStatus, ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from '@/types';
->>>>>>> d04f130 (geladinho v3)
 import { formatEUR } from '@/lib/flavors';
 
 function formatDate(dateStr: string): string {
@@ -119,28 +115,11 @@ export default function AdminPage() {
                           {order.customer_phone_e164}
                         </a>
                       </td>
-<<<<<<< HEAD
-                      <td className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">
-                        {order.customer_name}
-                      </td>
-                      <td className="px-4 py-3 text-gray-600 whitespace-nowrap font-mono text-xs">
-                        {order.customer_phone_e164}
-                      </td>
-                      <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
-                        {order.address_city}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-  {order.needs_change ? <span className="text-amber-600 font-semibold text-xs">💵 Sim</span> : <span className="text-gray-400 text-xs">Não</span>}
-</td>
-                      <td className="px-4 py-3 text-center font-semibold text-gray-900">
-                        {order.total_units}
-=======
                       <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{order.address_city}</td>
                       <td className="px-4 py-3 text-center">
                         {order.needs_change
                           ? <span className="text-amber-600 font-semibold text-xs">💵 Sim</span>
                           : <span className="text-gray-400 text-xs">Não</span>}
->>>>>>> d04f130 (geladinho v3)
                       </td>
                       <td className="px-4 py-3 text-center font-semibold text-gray-900">{order.total_units}</td>
                       <td className="px-4 py-3 font-bold text-brand-600 whitespace-nowrap">

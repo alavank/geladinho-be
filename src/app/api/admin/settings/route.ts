@@ -3,9 +3,14 @@ import { isAdminAuthenticated, unauthorizedResponse } from '@/lib/auth';
 import { getSettings, saveSettings } from '@/lib/settings';
 import { z } from 'zod';
 
+const FlavorConfigSchema = z.object({
+  id: z.string(),
+  active: z.boolean(),
+  priceEurCents: z.number().int().min(0),
+});
+
 const SettingsSchema = z.object({
-  activeFlavorIds: z.array(z.string()),
-  unitPriceEurCents: z.number().int().positive(),
+  flavorConfigs: z.array(FlavorConfigSchema),
   freightEurCents: z.number().int().min(0),
   minOrderEurCents: z.number().int().positive(),
 });

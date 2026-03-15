@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { FLAVORS, formatEUR } from '@/lib/flavors';
-import { SystemSettings } from '@/lib/settings';
+import { SystemSettings, FlavorConfig } from '@/lib/settings';
 import { CartItem } from '@/types';
 import FlavorCard from '@/components/FlavorCard';
 import OrderForm from '@/components/OrderForm';
@@ -45,16 +45,27 @@ export default function HomePage() {
   useEffect(() => {
     fetch('/api/settings')
       .then((r) => r.json())
-      .then((s) => { setSettings(s); setLoadingSettings(false); })
+      .then((s: SystemSettings) => { setSettings(s); setLoadingSettings(false); })
       .catch(() => setLoadingSettings(false));
   }, []);
 
-  const activeFlavors = useMemo(() => {
-    if (!settings || settings.activeFlavorIds.length === 0) return FLAVORS;
-    return FLAVORS.filter((f) => settings.activeFlavorIds.includes(f.id));
+  // Active flavors with their prices from settings
+  const activeFlavors = useMemo((): Array<{ id: string; name: string; priceEurCents: number; index: number }> => {
+    if (!settings) {
+      return FLAVORS.map((f, i) => ({ id: f.id, name: f.name, priceEurCents: f.defaultPriceEurCents, index: i }));
+    }
+    const result: Array<{ id: string; name: string; priceEurCents: number; index: number }> = [];
+    let colorIndex = 0;
+    for (const fc of settings.flavorConfigs) {
+      if (!fc.active) continue;
+      const flavor = FLAVORS.find((f) => f.id === fc.id);
+      if (!flavor) continue;
+      result.push({ id: fc.id, name: flavor.name, priceEurCents: fc.priceEurCents, index: colorIndex });
+      colorIndex++;
+    }
+    return result;
   }, [settings]);
 
-  const unitPrice = settings?.unitPriceEurCents ?? 170;
   const freightCents = settings?.freightEurCents ?? 0;
   const minOrderCents = settings?.minOrderEurCents ?? 8500;
 
@@ -65,15 +76,22 @@ export default function HomePage() {
     [quantities, activeFlavors]
   );
 
+  const subtotalCents = useMemo(() => {
+    let total = 0;
+    for (const item of cartItems) {
+      const flavor = activeFlavors.find((f) => f.id === item.flavorId);
+      total += (flavor?.priceEurCents ?? 170) * item.quantity;
+    }
+    return total;
+  }, [cartItems, activeFlavors]);
+
   const totalUnits = useMemo(() => cartItems.reduce((s, i) => s + i.quantity, 0), [cartItems]);
-  const subtotalCents = totalUnits * unitPrice;
   const grandTotalCents = subtotalCents + freightCents;
+  const canProceed = subtotalCents >= minOrderCents;
 
   const updateQuantity = useCallback((flavorId: string, value: number) => {
     setQuantities((prev) => ({ ...prev, [flavorId]: Math.max(0, value) }));
   }, []);
-
-  const canProceed = subtotalCents >= minOrderCents;
 
   const handleProceed = () => {
     if (!canProceed) return;
@@ -108,7 +126,7 @@ export default function HomePage() {
           needsChange: formData.needsChange,
           changeAmountEurCents: changeAmountCents,
           notes: formData.notes || undefined,
-          items: cartItems.map((i) => ({ flavorName: i.flavorName, quantity: i.quantity })),
+          items: cartItems.map((i) => ({ flavorId: i.flavorId, flavorName: i.flavorName, quantity: i.quantity })),
         }),
       });
 
@@ -132,10 +150,8 @@ export default function HomePage() {
           <span className="text-3xl">🧊</span>
           <h1 className="text-xl font-bold leading-tight">Geladinho Madamme Simone</h1>
           {step !== 'catalog' && (
-            <button
-              onClick={() => setStep(step === 'form' ? 'catalog' : 'form')}
-              className="ml-auto text-white/90 hover:text-white text-sm underline"
-            >
+            <button onClick={() => setStep(step === 'form' ? 'catalog' : 'form')}
+              className="ml-auto text-white/90 hover:text-white text-sm underline">
               ← Voltar
             </button>
           )}
@@ -144,15 +160,8 @@ export default function HomePage() {
 
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 py-2 flex gap-4 text-sm">
-          {[
-            { key: 'catalog', label: '1. Sabores' },
-            { key: 'form', label: '2. Dados' },
-            { key: 'confirm', label: '3. Confirmar' },
-          ].map((s) => (
-            <span
-              key={s.key}
-              className={`font-semibold ${step === s.key ? 'text-brand-600 border-b-2 border-brand-600 pb-2' : 'text-gray-400'}`}
-            >
+          {[{ key: 'catalog', label: '1. Sabores' }, { key: 'form', label: '2. Dados' }, { key: 'confirm', label: '3. Confirmar' }].map((s) => (
+            <span key={s.key} className={`font-semibold ${step === s.key ? 'text-brand-600 border-b-2 border-brand-600 pb-2' : 'text-gray-400'}`}>
               {s.label}
             </span>
           ))}
@@ -164,26 +173,24 @@ export default function HomePage() {
           {step === 'catalog' && (
             <>
               <div className="mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">🍭 Escolha seus sabores</h2>
-                {loadingSettings ? (
-                  <p className="text-gray-400 mt-1 text-sm">Carregando...</p>
-                ) : (
+                <h2 className="text-2xl font-bold text-gray-900">Escolha seus sabores</h2>
+                {!loadingSettings && (
                   <p className="text-gray-500 mt-1">
                     Pedido mínimo: <span className="font-semibold text-brand-600">{formatEUR(minOrderCents)}</span>
                     {freightCents > 0 && <> · Frete: <span className="font-semibold text-brand-600">{formatEUR(freightCents)}</span></>}
-                    {' '}· <span className="font-semibold text-brand-600">{formatEUR(unitPrice)}</span> cada
                   </p>
                 )}
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                {activeFlavors.map((flavor, index) => (
+                {activeFlavors.map((flavor) => (
                   <FlavorCard
                     key={flavor.id}
-                    flavor={flavor}
-                    index={index}
+                    flavorId={flavor.id}
+                    flavorName={flavor.name}
+                    colorIndex={flavor.index}
                     quantity={quantities[flavor.id] || 0}
+                    unitPriceCents={flavor.priceEurCents}
                     onQuantityChange={(val) => updateQuantity(flavor.id, val)}
-                    unitPriceCents={unitPrice}
                   />
                 ))}
               </div>
@@ -195,6 +202,7 @@ export default function HomePage() {
               initialData={formData}
               onSubmit={handleFormSubmit}
               cartItems={cartItems}
+              activeFlavors={activeFlavors}
               totalUnits={totalUnits}
               subtotalCents={subtotalCents}
               freightCents={freightCents}
@@ -206,6 +214,7 @@ export default function HomePage() {
             <ConfirmModal
               formData={formData}
               cartItems={cartItems}
+              activeFlavors={activeFlavors}
               totalUnits={totalUnits}
               subtotalCents={subtotalCents}
               freightCents={freightCents}
@@ -221,6 +230,7 @@ export default function HomePage() {
         {step === 'catalog' && (
           <DesktopSidebar
             cartItems={cartItems}
+            activeFlavors={activeFlavors}
             totalUnits={totalUnits}
             subtotalCents={subtotalCents}
             freightCents={freightCents}

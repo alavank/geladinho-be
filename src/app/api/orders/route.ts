@@ -17,15 +17,26 @@ export async function POST(request: NextRequest) {
     const settings = await getSettings();
     const phoneE164 = normalizeBelgianPhone(data.customerPhone)!;
 
-    const totalUnits = data.items.reduce((sum, item) => sum + item.quantity, 0);
-    const subtotalCents = totalUnits * settings.unitPriceEurCents;
+    // Build price map from settings
+    const priceMap: Record<string, number> = {};
+    for (const fc of settings.flavorConfigs) {
+      priceMap[fc.id] = fc.priceEurCents;
+    }
+
+    // Calculate totals using per-flavor price
+    const itemsWithPrice = data.items.map((item) => {
+      const flavorConfig = settings.flavorConfigs.find((fc) => fc.id === item.flavorId);
+      const price = flavorConfig?.priceEurCents ?? 170;
+      return { ...item, priceEurCents: price, lineTotal: price * item.quantity };
+    });
+
+    const totalUnits = itemsWithPrice.reduce((s, i) => s + i.quantity, 0);
+    const subtotalCents = itemsWithPrice.reduce((s, i) => s + i.lineTotal, 0);
 
     if (subtotalCents < settings.minOrderEurCents) {
       const minEur = (settings.minOrderEurCents / 100).toFixed(2).replace('.', ',');
       return NextResponse.json({ error: `Pedido mínimo de € ${minEur}` }, { status: 400 });
     }
-
-    const totalWithFreight = subtotalCents + settings.freightEurCents;
 
     const { data: order, error: orderError } = await supabaseAdmin
       .from('orders')
@@ -54,12 +65,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Erro ao salvar pedido' }, { status: 500 });
     }
 
-    const itemsToInsert = data.items.map((item) => ({
+    const itemsToInsert = itemsWithPrice.map((item) => ({
       order_id: order.id,
       flavor_name: item.flavorName,
-      unit_price_eur_cents: settings.unitPriceEurCents,
+      unit_price_eur_cents: item.priceEurCents,
       quantity: item.quantity,
-      line_total_eur_cents: item.quantity * settings.unitPriceEurCents,
+      line_total_eur_cents: item.lineTotal,
     }));
 
     const { data: insertedItems, error: itemsError } = await supabaseAdmin
@@ -69,8 +80,7 @@ export async function POST(request: NextRequest) {
 
     if (itemsError) console.error('Items insert error:', itemsError);
 
-    const orderForTelegram = { ...order, freight_eur_cents: settings.freightEurCents, total_with_freight: totalWithFreight };
-    sendTelegramNotification(orderForTelegram, insertedItems || itemsToInsert.map((i, idx) => ({ id: String(idx), ...i }))).catch(console.error);
+    sendTelegramNotification(order, insertedItems || itemsToInsert.map((i, idx) => ({ id: String(idx), ...i }))).catch(console.error);
 
     return NextResponse.json({ orderId: order.id }, { status: 201 });
   } catch (error) {
