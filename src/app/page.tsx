@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { FLAVORS, formatEUR } from '@/lib/flavors';
+import { FLAVORS, formatEUR, getFlavorColor } from '@/lib/flavors';
 import { SystemSettings, FlavorConfig } from '@/lib/settings';
 import { CartItem } from '@/types';
 import FlavorCard from '@/components/FlavorCard';
@@ -25,6 +25,13 @@ export interface FormData {
   notes: string;
 }
 
+export interface ActiveFlavor {
+  id: string;
+  name: string;
+  priceEurCents: number;
+  colorIndex: number;
+}
+
 const EMPTY_FORM: FormData = {
   customerName: '', customerPhone: '',
   addressStreet: '', addressNumber: '',
@@ -43,44 +50,47 @@ export default function HomePage() {
   const [loadingSettings, setLoadingSettings] = useState(true);
 
   useEffect(() => {
-    fetch('/api/settings')
+    fetch('/api/settings', { cache: 'no-store' })
       .then((r) => r.json())
-      .then((s: SystemSettings) => { setSettings(s); setLoadingSettings(false); })
-      .catch(() => setLoadingSettings(false));
+      .then((s: SystemSettings) => {
+        setSettings(s);
+        setLoadingSettings(false);
+      })
+      .catch(() => {
+        setLoadingSettings(false);
+      });
   }, []);
 
-  // Active flavors with their prices from settings
-  const activeFlavors = useMemo((): Array<{ id: string; name: string; priceEurCents: number; index: number }> => {
-    if (!settings) {
-      return FLAVORS.map((f, i) => ({ id: f.id, name: f.name, priceEurCents: f.defaultPriceEurCents, index: i }));
-    }
-    const result: Array<{ id: string; name: string; priceEurCents: number; index: number }> = [];
+  // ONLY show flavors from settings — no fallback to hardcoded list
+  const activeFlavors: ActiveFlavor[] = useMemo(() => {
+    if (!settings) return [];
     let colorIndex = 0;
-    for (const fc of settings.flavorConfigs) {
-      if (!fc.active) continue;
-      const flavor = FLAVORS.find((f) => f.id === fc.id);
-      if (!flavor) continue;
-      result.push({ id: fc.id, name: flavor.name, priceEurCents: fc.priceEurCents, index: colorIndex });
-      colorIndex++;
-    }
-    return result;
+    return settings.flavorConfigs
+      .filter((fc: FlavorConfig) => fc.active)
+      .map((fc: FlavorConfig) => ({
+        id: fc.id,
+        name: fc.name,
+        priceEurCents: fc.priceEurCents,
+        colorIndex: colorIndex++,
+      }));
   }, [settings]);
 
   const freightCents = settings?.freightEurCents ?? 0;
   const minOrderCents = settings?.minOrderEurCents ?? 8500;
 
   const cartItems: CartItem[] = useMemo(
-    () => activeFlavors
-      .filter((f) => (quantities[f.id] || 0) > 0)
-      .map((f) => ({ flavorId: f.id, flavorName: f.name, quantity: quantities[f.id] || 0 })),
+    () =>
+      activeFlavors
+        .filter((f) => (quantities[f.id] || 0) > 0)
+        .map((f) => ({ flavorId: f.id, flavorName: f.name, quantity: quantities[f.id] || 0 })),
     [quantities, activeFlavors]
   );
 
   const subtotalCents = useMemo(() => {
     let total = 0;
     for (const item of cartItems) {
-      const flavor = activeFlavors.find((f) => f.id === item.flavorId);
-      total += (flavor?.priceEurCents ?? 170) * item.quantity;
+      const f = activeFlavors.find((af) => af.id === item.flavorId);
+      total += (f?.priceEurCents ?? 0) * item.quantity;
     }
     return total;
   }, [cartItems, activeFlavors]);
@@ -109,9 +119,10 @@ export default function HomePage() {
     setSubmitting(true);
     setSubmitError('');
     try {
-      const changeAmountCents = formData.needsChange && formData.changeAmount
-        ? Math.round(parseFloat(formData.changeAmount.replace(',', '.')) * 100)
-        : undefined;
+      const changeAmountCents =
+        formData.needsChange && formData.changeAmount
+          ? Math.round(parseFloat(formData.changeAmount.replace(',', '.')) * 100)
+          : undefined;
 
       const res = await fetch('/api/orders', {
         method: 'POST',
@@ -126,7 +137,11 @@ export default function HomePage() {
           needsChange: formData.needsChange,
           changeAmountEurCents: changeAmountCents,
           notes: formData.notes || undefined,
-          items: cartItems.map((i) => ({ flavorId: i.flavorId, flavorName: i.flavorName, quantity: i.quantity })),
+          items: cartItems.map((i) => ({
+            flavorId: i.flavorId,
+            flavorName: i.flavorName,
+            quantity: i.quantity,
+          })),
         }),
       });
 
@@ -150,8 +165,10 @@ export default function HomePage() {
           <span className="text-3xl">🧊</span>
           <h1 className="text-xl font-bold leading-tight">Geladinho Madamme Simone</h1>
           {step !== 'catalog' && (
-            <button onClick={() => setStep(step === 'form' ? 'catalog' : 'form')}
-              className="ml-auto text-white/90 hover:text-white text-sm underline">
+            <button
+              onClick={() => setStep(step === 'form' ? 'catalog' : 'form')}
+              className="ml-auto text-white/90 hover:text-white text-sm underline"
+            >
               ← Voltar
             </button>
           )}
@@ -160,8 +177,17 @@ export default function HomePage() {
 
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 py-2 flex gap-4 text-sm">
-          {[{ key: 'catalog', label: '1. Sabores' }, { key: 'form', label: '2. Dados' }, { key: 'confirm', label: '3. Confirmar' }].map((s) => (
-            <span key={s.key} className={`font-semibold ${step === s.key ? 'text-brand-600 border-b-2 border-brand-600 pb-2' : 'text-gray-400'}`}>
+          {[
+            { key: 'catalog', label: '1. Sabores' },
+            { key: 'form', label: '2. Dados' },
+            { key: 'confirm', label: '3. Confirmar' },
+          ].map((s) => (
+            <span
+              key={s.key}
+              className={`font-semibold ${
+                step === s.key ? 'text-brand-600 border-b-2 border-brand-600 pb-2' : 'text-gray-400'
+              }`}
+            >
               {s.label}
             </span>
           ))}
@@ -174,26 +200,46 @@ export default function HomePage() {
             <>
               <div className="mb-6">
                 <h2 className="text-2xl font-bold text-gray-900">Escolha seus sabores</h2>
-                {!loadingSettings && (
+                {!loadingSettings && settings && (
                   <p className="text-gray-500 mt-1">
-                    Pedido mínimo: <span className="font-semibold text-brand-600">{formatEUR(minOrderCents)}</span>
-                    {freightCents > 0 && <> · Frete: <span className="font-semibold text-brand-600">{formatEUR(freightCents)}</span></>}
+                    Pedido mínimo:{' '}
+                    <span className="font-semibold text-brand-600">{formatEUR(minOrderCents)}</span>
+                    {freightCents > 0 && (
+                      <> · Frete:{' '}
+                        <span className="font-semibold text-brand-600">{formatEUR(freightCents)}</span>
+                      </>
+                    )}
                   </p>
                 )}
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                {activeFlavors.map((flavor) => (
-                  <FlavorCard
-                    key={flavor.id}
-                    flavorId={flavor.id}
-                    flavorName={flavor.name}
-                    colorIndex={flavor.index}
-                    quantity={quantities[flavor.id] || 0}
-                    unitPriceCents={flavor.priceEurCents}
-                    onQuantityChange={(val) => updateQuantity(flavor.id, val)}
-                  />
-                ))}
-              </div>
+
+              {loadingSettings ? (
+                <div className="flex items-center justify-center py-20 text-gray-400">
+                  ⏳ Carregando cardápio...
+                </div>
+              ) : activeFlavors.length === 0 ? (
+                <div className="flex items-center justify-center py-20 text-gray-400 text-center">
+                  <div>
+                    <p className="text-4xl mb-3">🧊</p>
+                    <p className="font-semibold">Cardápio não disponível no momento.</p>
+                    <p className="text-sm mt-1">Volte em breve!</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {activeFlavors.map((flavor) => (
+                    <FlavorCard
+                      key={flavor.id}
+                      flavorId={flavor.id}
+                      flavorName={flavor.name}
+                      colorIndex={flavor.colorIndex}
+                      quantity={quantities[flavor.id] || 0}
+                      unitPriceCents={flavor.priceEurCents}
+                      onQuantityChange={(val) => updateQuantity(flavor.id, val)}
+                    />
+                  ))}
+                </div>
+              )}
             </>
           )}
 
