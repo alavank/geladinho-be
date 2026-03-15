@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Order, OrderStatus, ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from '@/types';
 import { formatEUR } from '@/lib/flavors';
 
@@ -46,15 +47,9 @@ export default function AdminPage() {
   }, {} as Record<string, number>);
 
   return (
-    <div className="min-h-screen">
-      <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-30 shadow-sm">
-        <div className="flex items-center gap-3">
-          <span className="text-2xl">🧊</span>
-          <div>
-            <h1 className="font-bold text-gray-900">Geladinho Madamme Simone</h1>
-            <p className="text-xs text-gray-500">Painel Admin</p>
-          </div>
-        </div>
+    <div className="min-h-screen bg-gray-50">
+      <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between sticky top-0 z-30 shadow-sm">
+        <Image src="/logo.png" alt="Madame Simone" width={140} height={50} className="h-10 w-auto object-contain" />
         <div className="flex items-center gap-3">
           <Link href="/admin/configuracoes" className="text-sm text-gray-600 hover:text-gray-900 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50 font-medium">
             ⚙️ Configurações
@@ -86,8 +81,7 @@ export default function AdminPage() {
           <div className="text-red-600 bg-red-50 p-4 rounded-xl">{error}</div>
         ) : orders.length === 0 ? (
           <div className="card p-12 text-center text-gray-400">
-            <p className="text-4xl mb-3">📭</p>
-            <p>Nenhum pedido ainda.</p>
+            <p className="text-4xl mb-3">📭</p><p>Nenhum pedido ainda.</p>
           </div>
         ) : (
           <div className="card overflow-hidden">
@@ -106,20 +100,12 @@ export default function AdminPage() {
                       <td className="px-4 py-3 whitespace-nowrap text-gray-600 text-xs">{formatDate(order.created_at)}</td>
                       <td className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">{order.customer_name}</td>
                       <td className="px-4 py-3 whitespace-nowrap">
-                        <a
-                          href={`https://wa.me/${order.customer_phone_e164.replace(/\D/g, '')}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-green-600 hover:text-green-800 font-mono text-xs underline"
-                        >
-                          {order.customer_phone_e164}
-                        </a>
+                        <a href={`https://wa.me/${order.customer_phone_e164.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer"
+                          className="text-green-600 hover:text-green-800 font-mono text-xs underline">{order.customer_phone_e164}</a>
                       </td>
                       <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{order.address_city}</td>
                       <td className="px-4 py-3 text-center">
-                        {order.needs_change
-                          ? <span className="text-amber-600 font-semibold text-xs">💵 Sim</span>
-                          : <span className="text-gray-400 text-xs">Não</span>}
+                        {order.needs_change ? <span className="text-amber-600 font-semibold text-xs">💵 Sim</span> : <span className="text-gray-400 text-xs">Não</span>}
                       </td>
                       <td className="px-4 py-3 text-center font-semibold text-gray-900">{order.total_units}</td>
                       <td className="px-4 py-3 font-bold text-brand-600 whitespace-nowrap">
@@ -131,9 +117,7 @@ export default function AdminPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <Link href={`/admin/pedidos/${order.id}`} className="text-brand-600 hover:text-brand-800 font-semibold text-xs whitespace-nowrap">
-                          Ver →
-                        </Link>
+                        <Link href={`/admin/pedidos/${order.id}`} className="text-brand-600 hover:text-brand-800 font-semibold text-xs whitespace-nowrap">Ver →</Link>
                       </td>
                     </tr>
                   ))}

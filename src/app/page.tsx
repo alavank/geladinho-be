@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { FLAVORS, formatEUR, getFlavorColor } from '@/lib/flavors';
+import Image from 'next/image';
+import { formatEUR } from '@/lib/flavors';
 import { SystemSettings, FlavorConfig } from '@/lib/settings';
 import { CartItem } from '@/types';
 import FlavorCard from '@/components/FlavorCard';
@@ -29,7 +30,7 @@ export interface ActiveFlavor {
   id: string;
   name: string;
   priceEurCents: number;
-  colorIndex: number;
+  index: number;
 }
 
 const EMPTY_FORM: FormData = {
@@ -52,37 +53,24 @@ export default function HomePage() {
   useEffect(() => {
     fetch('/api/settings', { cache: 'no-store' })
       .then((r) => r.json())
-      .then((s: SystemSettings) => {
-        setSettings(s);
-        setLoadingSettings(false);
-      })
-      .catch(() => {
-        setLoadingSettings(false);
-      });
+      .then((s: SystemSettings) => { setSettings(s); setLoadingSettings(false); })
+      .catch(() => setLoadingSettings(false));
   }, []);
 
-  // ONLY show flavors from settings — no fallback to hardcoded list
   const activeFlavors: ActiveFlavor[] = useMemo(() => {
     if (!settings) return [];
-    let colorIndex = 0;
+    let idx = 0;
     return settings.flavorConfigs
       .filter((fc: FlavorConfig) => fc.active)
-      .map((fc: FlavorConfig) => ({
-        id: fc.id,
-        name: fc.name,
-        priceEurCents: fc.priceEurCents,
-        colorIndex: colorIndex++,
-      }));
+      .map((fc: FlavorConfig) => ({ id: fc.id, name: fc.name, priceEurCents: fc.priceEurCents, index: idx++ }));
   }, [settings]);
 
   const freightCents = settings?.freightEurCents ?? 0;
   const minOrderCents = settings?.minOrderEurCents ?? 8500;
 
   const cartItems: CartItem[] = useMemo(
-    () =>
-      activeFlavors
-        .filter((f) => (quantities[f.id] || 0) > 0)
-        .map((f) => ({ flavorId: f.id, flavorName: f.name, quantity: quantities[f.id] || 0 })),
+    () => activeFlavors.filter((f) => (quantities[f.id] || 0) > 0)
+      .map((f) => ({ flavorId: f.id, flavorName: f.name, quantity: quantities[f.id] || 0 })),
     [quantities, activeFlavors]
   );
 
@@ -103,48 +91,26 @@ export default function HomePage() {
     setQuantities((prev) => ({ ...prev, [flavorId]: Math.max(0, value) }));
   }, []);
 
-  const handleProceed = () => {
-    if (!canProceed) return;
-    setStep('form');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const handleFormSubmit = (data: FormData) => {
-    setFormData(data);
-    setStep('confirm');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  const handleProceed = () => { if (!canProceed) return; setStep('form'); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+  const handleFormSubmit = (data: FormData) => { setFormData(data); setStep('confirm'); window.scrollTo({ top: 0, behavior: 'smooth' }); };
 
   const handleConfirm = async () => {
-    setSubmitting(true);
-    setSubmitError('');
+    setSubmitting(true); setSubmitError('');
     try {
-      const changeAmountCents =
-        formData.needsChange && formData.changeAmount
-          ? Math.round(parseFloat(formData.changeAmount.replace(',', '.')) * 100)
-          : undefined;
-
+      const changeAmountCents = formData.needsChange && formData.changeAmount
+        ? Math.round(parseFloat(formData.changeAmount.replace(',', '.')) * 100) : undefined;
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          customerName: formData.customerName,
-          customerPhone: formData.customerPhone,
-          addressStreet: formData.addressStreet,
-          addressNumber: formData.addressNumber,
-          addressPostalCode: formData.addressPostalCode,
-          addressCommune: formData.addressCommune,
-          needsChange: formData.needsChange,
-          changeAmountEurCents: changeAmountCents,
+          customerName: formData.customerName, customerPhone: formData.customerPhone,
+          addressStreet: formData.addressStreet, addressNumber: formData.addressNumber,
+          addressPostalCode: formData.addressPostalCode, addressCommune: formData.addressCommune,
+          needsChange: formData.needsChange, changeAmountEurCents: changeAmountCents,
           notes: formData.notes || undefined,
-          items: cartItems.map((i) => ({
-            flavorId: i.flavorId,
-            flavorName: i.flavorName,
-            quantity: i.quantity,
-          })),
+          items: cartItems.map((i) => ({ flavorId: i.flavorId, flavorName: i.flavorName, quantity: i.quantity })),
         }),
       });
-
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Erro ao enviar pedido');
       setOrderId(json.orderId);
@@ -159,35 +125,24 @@ export default function HomePage() {
   if (step === 'success') return <SuccessScreen orderId={orderId} />;
 
   return (
-    <div className="min-h-screen">
-      <header className="bg-gradient-to-r from-brand-600 to-ice-500 text-white sticky top-0 z-40 shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-3">
-          <span className="text-3xl">🧊</span>
-          <h1 className="text-xl font-bold leading-tight">Geladinho Madamme Simone</h1>
+    <div className="min-h-screen" style={{ backgroundColor: '#FAFAFA' }}>
+      {/* Header */}
+      <header style={{ background: 'linear-gradient(135deg, #C41230 0%, #4A1E00 100%)' }} className="sticky top-0 z-40 shadow-lg">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-4">
+          <Image src="/logo.png" alt="Madame Simone" width={160} height={56} className="h-12 w-auto object-contain" style={{ filter: 'brightness(0) invert(1)' }} />
           {step !== 'catalog' && (
-            <button
-              onClick={() => setStep(step === 'form' ? 'catalog' : 'form')}
-              className="ml-auto text-white/90 hover:text-white text-sm underline"
-            >
+            <button onClick={() => setStep(step === 'form' ? 'catalog' : 'form')} className="ml-auto text-white/90 hover:text-white text-sm underline">
               ← Voltar
             </button>
           )}
         </div>
       </header>
 
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 py-2 flex gap-4 text-sm">
-          {[
-            { key: 'catalog', label: '1. Sabores' },
-            { key: 'form', label: '2. Dados' },
-            { key: 'confirm', label: '3. Confirmar' },
-          ].map((s) => (
-            <span
-              key={s.key}
-              className={`font-semibold ${
-                step === s.key ? 'text-brand-600 border-b-2 border-brand-600 pb-2' : 'text-gray-400'
-              }`}
-            >
+      {/* Steps */}
+      <div className="bg-white border-b border-gray-200 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 py-0 flex gap-0">
+          {[{ key: 'catalog', label: '1. Sabores' }, { key: 'form', label: '2. Dados' }, { key: 'confirm', label: '3. Confirmar' }].map((s) => (
+            <span key={s.key} className={`py-3 px-4 text-sm font-semibold border-b-2 transition-all ${step === s.key ? 'border-brand-600 text-brand-600' : 'border-transparent text-gray-400'}`}>
               {s.label}
             </span>
           ))}
@@ -202,28 +157,16 @@ export default function HomePage() {
                 <h2 className="text-2xl font-bold text-gray-900">Escolha seus sabores</h2>
                 {!loadingSettings && settings && (
                   <p className="text-gray-500 mt-1">
-                    Pedido mínimo:{' '}
-                    <span className="font-semibold text-brand-600">{formatEUR(minOrderCents)}</span>
-                    {freightCents > 0 && (
-                      <> · Frete:{' '}
-                        <span className="font-semibold text-brand-600">{formatEUR(freightCents)}</span>
-                      </>
-                    )}
+                    Pedido mínimo: <span className="font-semibold text-brand-600">{formatEUR(minOrderCents)}</span>
+                    {freightCents > 0 && <> · Frete: <span className="font-semibold text-brand-600">{formatEUR(freightCents)}</span></>}
                   </p>
                 )}
               </div>
-
               {loadingSettings ? (
-                <div className="flex items-center justify-center py-20 text-gray-400">
-                  ⏳ Carregando cardápio...
-                </div>
+                <div className="flex items-center justify-center py-20 text-gray-400">⏳ Carregando cardápio...</div>
               ) : activeFlavors.length === 0 ? (
                 <div className="flex items-center justify-center py-20 text-gray-400 text-center">
-                  <div>
-                    <p className="text-4xl mb-3">🧊</p>
-                    <p className="font-semibold">Cardápio não disponível no momento.</p>
-                    <p className="text-sm mt-1">Volte em breve!</p>
-                  </div>
+                  <div><p className="text-4xl mb-3">🧊</p><p className="font-semibold">Cardápio não disponível no momento.</p></div>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -232,7 +175,7 @@ export default function HomePage() {
                       key={flavor.id}
                       flavorId={flavor.id}
                       flavorName={flavor.name}
-                      colorIndex={flavor.colorIndex}
+                      colorIndex={flavor.index}
                       quantity={quantities[flavor.id] || 0}
                       unitPriceCents={flavor.priceEurCents}
                       onQuantityChange={(val) => updateQuantity(flavor.id, val)}
@@ -242,60 +185,28 @@ export default function HomePage() {
               )}
             </>
           )}
-
           {step === 'form' && (
-            <OrderForm
-              initialData={formData}
-              onSubmit={handleFormSubmit}
-              cartItems={cartItems}
-              activeFlavors={activeFlavors}
-              totalUnits={totalUnits}
-              subtotalCents={subtotalCents}
-              freightCents={freightCents}
-              grandTotalCents={grandTotalCents}
-            />
+            <OrderForm initialData={formData} onSubmit={handleFormSubmit} cartItems={cartItems}
+              activeFlavors={activeFlavors} totalUnits={totalUnits} subtotalCents={subtotalCents}
+              freightCents={freightCents} grandTotalCents={grandTotalCents} />
           )}
-
           {step === 'confirm' && (
-            <ConfirmModal
-              formData={formData}
-              cartItems={cartItems}
-              activeFlavors={activeFlavors}
-              totalUnits={totalUnits}
-              subtotalCents={subtotalCents}
-              freightCents={freightCents}
-              grandTotalCents={grandTotalCents}
-              onConfirm={handleConfirm}
-              onBack={() => setStep('form')}
-              submitting={submitting}
-              error={submitError}
-            />
+            <ConfirmModal formData={formData} cartItems={cartItems} activeFlavors={activeFlavors}
+              totalUnits={totalUnits} subtotalCents={subtotalCents} freightCents={freightCents}
+              grandTotalCents={grandTotalCents} onConfirm={handleConfirm} onBack={() => setStep('form')}
+              submitting={submitting} error={submitError} />
           )}
         </div>
-
         {step === 'catalog' && (
-          <DesktopSidebar
-            cartItems={cartItems}
-            activeFlavors={activeFlavors}
-            totalUnits={totalUnits}
-            subtotalCents={subtotalCents}
-            freightCents={freightCents}
-            grandTotalCents={grandTotalCents}
-            minOrderCents={minOrderCents}
-            onProceed={handleProceed}
-          />
+          <DesktopSidebar cartItems={cartItems} activeFlavors={activeFlavors} totalUnits={totalUnits}
+            subtotalCents={subtotalCents} freightCents={freightCents} grandTotalCents={grandTotalCents}
+            minOrderCents={minOrderCents} onProceed={handleProceed} />
         )}
       </div>
 
       {step === 'catalog' && (
-        <StickyCart
-          totalUnits={totalUnits}
-          subtotalCents={subtotalCents}
-          freightCents={freightCents}
-          grandTotalCents={grandTotalCents}
-          minOrderCents={minOrderCents}
-          onProceed={handleProceed}
-        />
+        <StickyCart totalUnits={totalUnits} subtotalCents={subtotalCents} freightCents={freightCents}
+          grandTotalCents={grandTotalCents} minOrderCents={minOrderCents} onProceed={handleProceed} />
       )}
     </div>
   );

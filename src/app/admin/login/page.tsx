@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 export default function AdminLoginPage() {
   const [username, setUsername] = useState('');
@@ -31,14 +32,13 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
+    <div className="min-h-screen flex items-center justify-center px-4" style={{ background: 'linear-gradient(135deg, #C41230 0%, #4A1E00 100%)' }}>
       <div className="max-w-sm w-full">
         <div className="text-center mb-8">
-          <span className="text-5xl">🧊</span>
-          <h1 className="text-2xl font-bold text-gray-900 mt-3">Geladinho Madamme Simone</h1>
-          <p className="text-gray-500 text-sm mt-1">Painel Admin</p>
+          <Image src="/logo.png" alt="Madame Simone" width={240} height={88} className="mx-auto h-20 w-auto object-contain" style={{ filter: 'brightness(0) invert(1)' }} />
+          <p className="text-white/70 text-sm mt-3">Painel Administrativo</p>
         </div>
-        <div className="card p-6">
+        <div className="card p-6 shadow-2xl">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="label">Usuário</label>

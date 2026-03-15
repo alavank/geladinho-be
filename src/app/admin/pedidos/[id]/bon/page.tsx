@@ -25,9 +25,7 @@ export default function BonDeCommandePage() {
       .then((data) => { setOrder(data); setLoading(false); });
   }, [id]);
 
-  if (loading || !order) {
-    return <div style={{ padding: 40, fontFamily: 'sans-serif' }}>Carregando...</div>;
-  }
+  if (loading || !order) return <div style={{ padding: 40, fontFamily: 'sans-serif' }}>Carregando...</div>;
 
   const freightCents = order.freight_eur_cents || 0;
   const grandTotal = order.total_price_eur_cents + freightCents;
@@ -38,48 +36,46 @@ export default function BonDeCommandePage() {
     <>
       <style>{`
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #111; background: #fff; }
-        .page { width: 210mm; min-height: 297mm; margin: 0 auto; padding: 20mm 18mm; }
-        .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #111; padding-bottom: 14px; margin-bottom: 20px; }
-        .logo-block h1 { font-size: 26px; font-weight: 900; letter-spacing: -1px; }
-        .bon-title { text-align: right; }
-        .bon-title h2 { font-size: 22px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; }
-        .bon-title p { font-size: 11px; color: #555; margin-top: 4px; }
+        body { font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #1a1a1a; background: #fff; }
+        .page { width: 210mm; min-height: 297mm; margin: 0 auto; padding: 18mm 16mm; }
+        .header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 16px; margin-bottom: 20px; border-bottom: 3px solid #C41230; }
+        .logo-img { height: 56px; width: auto; }
+        .bon-info { text-align: right; }
+        .bon-info h2 { font-size: 20px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; color: #C41230; }
+        .bon-info p { font-size: 11px; color: #666; margin-top: 4px; }
         .section { margin-bottom: 18px; }
-        .section-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #777; border-bottom: 1px solid #ddd; padding-bottom: 4px; margin-bottom: 10px; }
+        .section-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #9B7A2E; border-bottom: 1px solid #F5E8D0; padding-bottom: 4px; margin-bottom: 10px; }
         .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px; }
         .info-row { display: flex; flex-direction: column; }
         .info-label { font-size: 10px; color: #888; margin-bottom: 2px; }
         .info-value { font-size: 13px; font-weight: 600; }
         table { width: 100%; border-collapse: collapse; }
-        th { background: #111; color: #fff; padding: 7px 10px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+        th { background: #C41230; color: #fff; padding: 8px 10px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
         th.right, td.right { text-align: right; }
         th.center, td.center { text-align: center; }
-        td { padding: 7px 10px; border-bottom: 1px solid #eee; font-size: 12px; }
-        tr:nth-child(even) td { background: #f9f9f9; }
+        td { padding: 8px 10px; border-bottom: 1px solid #f0e8e0; font-size: 12px; }
+        tr:nth-child(even) td { background: #FDF6EC; }
         .totals { margin-top: 16px; margin-left: auto; width: 260px; }
-        .total-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 13px; border-bottom: 1px solid #eee; }
-        .total-row.grand { font-size: 16px; font-weight: 900; border-bottom: none; border-top: 3px solid #111; padding-top: 10px; margin-top: 6px; }
-        .troco-box { background: #fffbe6; border: 1px solid #f59e0b; border-radius: 6px; padding: 10px 14px; font-size: 12px; }
-        .footer { margin-top: 30px; border-top: 1px solid #ddd; padding-top: 12px; text-align: center; font-size: 10px; color: #aaa; }
-        .print-btn { position: fixed; bottom: 20px; right: 20px; background: #111; color: #fff; border: none; border-radius: 8px; padding: 12px 22px; font-weight: 700; cursor: pointer; font-size: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
-        .print-btn:hover { background: #333; }
+        .total-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 13px; border-bottom: 1px solid #f0e8e0; }
+        .total-row.grand { font-size: 17px; font-weight: 900; border-bottom: none; border-top: 3px solid #C41230; padding-top: 10px; margin-top: 6px; color: #C41230; }
+        .troco-box { background: #FFF5F5; border: 1px solid #FFC2C8; border-radius: 6px; padding: 10px 14px; font-size: 12px; color: #7A0A1E; }
+        .footer { margin-top: 30px; border-top: 1px solid #f0e8e0; padding-top: 12px; text-align: center; font-size: 10px; color: #bbb; }
+        .print-btn { position: fixed; bottom: 20px; right: 20px; background: #C41230; color: #fff; border: none; border-radius: 10px; padding: 12px 22px; font-weight: 700; cursor: pointer; font-size: 14px; box-shadow: 0 4px 16px rgba(196,18,48,0.3); }
+        .print-btn:hover { background: #A00D27; }
         @media print {
           @page { size: A4; margin: 0; }
-          .page { padding: 15mm 14mm; }
+          .page { padding: 14mm 13mm; }
           .print-btn { display: none; }
         }
       `}</style>
 
       <div className="page">
         <div className="header">
-          <div className="logo-block">
-            <h1>Geladinho Madamme Simone</h1>
-          </div>
-          <div className="bon-title">
+          <img src="/logo.png" alt="Madame Simone" className="logo-img" />
+          <div className="bon-info">
             <h2>Bon de Commande</h2>
             <p>N° {shortId}</p>
-            <p style={{ marginTop: 4 }}>{formatDate(order.created_at)}</p>
+            <p>{formatDate(order.created_at)}</p>
           </div>
         </div>
 
@@ -134,38 +130,26 @@ export default function BonDeCommandePage() {
               ))}
             </tbody>
           </table>
-
           <div className="totals">
-            <div className="total-row">
-              <span>Subtotal ({order.total_units} un.)</span>
-              <span>{formatEUR(order.total_price_eur_cents)}</span>
-            </div>
-            <div className="total-row">
-              <span>Frete</span>
-              <span>{formatEUR(freightCents)}</span>
-            </div>
-            <div className="total-row grand">
-              <span>TOTAL</span>
-              <span>{formatEUR(grandTotal)}</span>
-            </div>
+            <div className="total-row"><span>Subtotal ({order.total_units} un.)</span><span>{formatEUR(order.total_price_eur_cents)}</span></div>
+            <div className="total-row"><span>Frete</span><span>{formatEUR(freightCents)}</span></div>
+            <div className="total-row grand"><span>TOTAL</span><span>{formatEUR(grandTotal)}</span></div>
           </div>
         </div>
 
         {order.notes && (
           <div className="section">
             <div className="section-title">Observações</div>
-            <p style={{ fontStyle: 'italic', color: '#444' }}>{order.notes}</p>
+            <p style={{ fontStyle: 'italic', color: '#555' }}>{order.notes}</p>
           </div>
         )}
 
         <div className="footer">
-          Geladinho Madamme Simone · Pedido #{shortId} · {formatDate(order.created_at)}
+          Madame Simone — Produits Alimentaires · Pedido #{shortId} · {formatDate(order.created_at)}
         </div>
       </div>
 
-      <button className="print-btn" onClick={() => window.print()}>
-        🖨️ Imprimir / Salvar PDF
-      </button>
+      <button className="print-btn" onClick={() => window.print()}>🖨️ Imprimir / Salvar PDF</button>
     </>
   );
 }
