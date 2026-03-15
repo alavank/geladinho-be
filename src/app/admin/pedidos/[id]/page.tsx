@@ -15,8 +15,7 @@ function formatDate(dateStr: string): string {
 }
 
 function makeWhatsAppLink(phoneE164: string): string {
-  const digits = phoneE164.replace(/\D/g, '');
-  return `https://wa.me/${digits}`;
+  return `https://wa.me/${phoneE164.replace(/\D/g, '')}`;
 }
 
 export default function OrderDetailPage() {
@@ -27,6 +26,7 @@ export default function OrderDetailPage() {
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => { fetchOrder(); }, [id]);
@@ -43,7 +43,7 @@ export default function OrderDetailPage() {
   const updateStatus = async (newStatus: OrderStatus) => {
     if (!order) return;
     setUpdating(true);
-    const res = await fetch(`/api/admin/orders/${id}/status`, {
+    const res = await fetch(`/api/admin/orders/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: newStatus }),
@@ -51,6 +51,19 @@ export default function OrderDetailPage() {
     if (res.ok) setOrder((prev) => prev ? { ...prev, status: newStatus } : prev);
     else setError('Erro ao atualizar status');
     setUpdating(false);
+  };
+
+  const handleDelete = async () => {
+    if (!order) return;
+    if (!confirm(`Excluir o pedido de ${order.customer_name}? Esta ação não pode ser desfeita.`)) return;
+    setDeleting(true);
+    const res = await fetch(`/api/admin/orders/${id}`, { method: 'DELETE' });
+    if (res.ok) {
+      router.push('/admin');
+    } else {
+      setError('Erro ao excluir pedido');
+      setDeleting(false);
+    }
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center text-gray-400">⏳ Carregando...</div>;
@@ -68,7 +81,7 @@ export default function OrderDetailPage() {
   const grandTotal = order.total_price_eur_cents + freightCents;
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center gap-4 sticky top-0 z-30 shadow-sm">
         <Link href="/admin" className="text-gray-500 hover:text-gray-700">← Pedidos</Link>
         <span className="text-gray-300">|</span>
@@ -82,19 +95,13 @@ export default function OrderDetailPage() {
 
         {/* Actions */}
         <div className="flex flex-wrap gap-3">
-          <a
-            href={makeWhatsAppLink(order.customer_phone_e164)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white font-semibold px-5 py-2.5 rounded-xl transition-all shadow-sm"
-          >
+          <a href={makeWhatsAppLink(order.customer_phone_e164)} target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white font-semibold px-5 py-2.5 rounded-xl transition-all shadow-sm">
             💬 WhatsApp do cliente
           </a>
-          <button
-            onClick={() => window.open(`/admin/pedidos/${id}/bon`, '_blank')}
-            className="flex items-center gap-2 bg-gray-800 hover:bg-gray-900 text-white font-semibold px-5 py-2.5 rounded-xl transition-all shadow-sm"
-          >
-            🖨️ Gerar Bon de Commande (PDF)
+          <button onClick={() => window.open(`/admin/pedidos/${id}/bon`, '_blank')}
+            className="flex items-center gap-2 bg-gray-800 hover:bg-gray-900 text-white font-semibold px-5 py-2.5 rounded-xl transition-all shadow-sm">
+            🖨️ Bon de Commande (PDF)
           </button>
         </div>
 
@@ -103,16 +110,13 @@ export default function OrderDetailPage() {
           <h2 className="font-bold text-gray-800 mb-4">Alterar Status</h2>
           <div className="flex flex-wrap gap-2">
             {(Object.keys(ORDER_STATUS_LABELS) as OrderStatus[]).map((status) => (
-              <button
-                key={status}
-                onClick={() => updateStatus(status)}
+              <button key={status} onClick={() => updateStatus(status)}
                 disabled={updating || order.status === status}
                 className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all border-2 ${
                   order.status === status
                     ? ORDER_STATUS_COLORS[status] + ' border-transparent cursor-default'
                     : 'border-gray-200 text-gray-600 hover:border-gray-400 disabled:opacity-50'
-                }`}
-              >
+                }`}>
                 {ORDER_STATUS_LABELS[status]}
               </button>
             ))}
@@ -131,12 +135,8 @@ export default function OrderDetailPage() {
               <dt className="text-gray-500 text-xs uppercase tracking-wide">Telefone</dt>
               <dd className="mt-1 flex items-center gap-2 flex-wrap">
                 <span className="font-semibold text-gray-900 font-mono">{order.customer_phone_e164}</span>
-                <a
-                  href={makeWhatsAppLink(order.customer_phone_e164)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 bg-green-100 text-green-700 hover:bg-green-200 text-xs font-semibold px-2 py-1 rounded-lg transition-colors"
-                >
+                <a href={makeWhatsAppLink(order.customer_phone_e164)} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 bg-green-100 text-green-700 hover:bg-green-200 text-xs font-semibold px-2 py-1 rounded-lg">
                   💬 WhatsApp
                 </a>
               </dd>
@@ -150,9 +150,7 @@ export default function OrderDetailPage() {
             <div>
               <dt className="text-gray-500 text-xs uppercase tracking-wide">Troco</dt>
               <dd className="font-semibold text-gray-900 mt-1">
-                {order.needs_change
-                  ? `Sim — tem ${formatEUR(order.change_amount_eur_cents || 0)} em mãos`
-                  : 'Não precisa'}
+                {order.needs_change ? `Sim — tem ${formatEUR(order.change_amount_eur_cents || 0)} em mãos` : 'Não precisa'}
               </dd>
             </div>
             <div>
@@ -189,7 +187,6 @@ export default function OrderDetailPage() {
               ))}
             </tbody>
           </table>
-
           <div className="border-t-2 border-gray-200 pt-4 space-y-2">
             <div className="flex justify-between text-sm text-gray-600">
               <span>Subtotal ({order.total_units} unidades)</span>
@@ -210,6 +207,18 @@ export default function OrderDetailPage() {
 
         <div className="card p-4 bg-gray-50">
           <p className="text-xs text-gray-400">ID: <span className="font-mono">{order.id}</span></p>
+        </div>
+
+        {/* Delete button */}
+        <div className="border-t border-gray-200 pt-6 pb-10">
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className="w-full flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 font-semibold py-3 px-6 rounded-xl border border-red-200 transition-all disabled:opacity-50"
+          >
+            {deleting ? '⏳ Excluindo...' : '🗑️ Excluir este pedido permanentemente'}
+          </button>
+          <p className="text-xs text-gray-400 text-center mt-2">Esta ação não pode ser desfeita.</p>
         </div>
       </div>
     </div>

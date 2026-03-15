@@ -25,3 +25,42 @@ export async function GET(
 
   return NextResponse.json({ ...order, order_items: items || [] });
 }
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  if (!isAdminAuthenticated(request)) return unauthorizedResponse();
+
+  const body = await request.json();
+
+  const { error } = await supabaseAdmin
+    .from('orders')
+    .update({ status: body.status })
+    .eq('id', params.id);
+
+  if (error) {
+    return NextResponse.json({ error: 'Erro ao atualizar status' }, { status: 500 });
+  }
+
+  return NextResponse.json({ ok: true });
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  if (!isAdminAuthenticated(request)) return unauthorizedResponse();
+
+  // order_items are deleted via CASCADE
+  const { error } = await supabaseAdmin
+    .from('orders')
+    .delete()
+    .eq('id', params.id);
+
+  if (error) {
+    return NextResponse.json({ error: 'Erro ao excluir pedido' }, { status: 500 });
+  }
+
+  return NextResponse.json({ ok: true });
+}
