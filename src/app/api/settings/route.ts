@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getSettings } from '@/lib/settings';
+import { getSettings } from '@/lib/settings-server';
 
 export async function GET() {
   try {

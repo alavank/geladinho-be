@@ -3,7 +3,7 @@ import { CreateOrderSchema } from '@/lib/schemas';
 import { normalizeBelgianPhone } from '@/lib/phone';
 import { supabaseAdmin } from '@/lib/supabase';
 import { sendTelegramNotification } from '@/lib/telegram';
-import { getSettings } from '@/lib/settings';
+import { getSettings } from '@/lib/settings-server';
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,16 +17,9 @@ export async function POST(request: NextRequest) {
     const settings = await getSettings();
     const phoneE164 = normalizeBelgianPhone(data.customerPhone)!;
 
-    // Build price map from settings
-    const priceMap: Record<string, number> = {};
-    for (const fc of settings.flavorConfigs) {
-      priceMap[fc.id] = fc.priceEurCents;
-    }
-
-    // Calculate totals using per-flavor price
     const itemsWithPrice = data.items.map((item) => {
-      const flavorConfig = settings.flavorConfigs.find((fc) => fc.id === item.flavorId);
-      const price = flavorConfig?.priceEurCents ?? 170;
+      const fc = settings.flavorConfigs.find((f) => f.id === item.flavorId);
+      const price = fc?.priceEurCents ?? 170;
       return { ...item, priceEurCents: price, lineTotal: price * item.quantity };
     });
 
@@ -74,9 +67,7 @@ export async function POST(request: NextRequest) {
     }));
 
     const { data: insertedItems, error: itemsError } = await supabaseAdmin
-      .from('order_items')
-      .insert(itemsToInsert)
-      .select();
+      .from('order_items').insert(itemsToInsert).select();
 
     if (itemsError) console.error('Items insert error:', itemsError);
 

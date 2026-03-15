@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdminAuthenticated, unauthorizedResponse } from '@/lib/auth';
-import { getSettings, saveSettings } from '@/lib/settings';
+import { getSettings, saveSettings } from '@/lib/settings-server';
 import { z } from 'zod';
 
 const FlavorConfigSchema = z.object({
   id: z.string(),
+  name: z.string(),
   active: z.boolean(),
   priceEurCents: z.number().int().min(0),
 });
