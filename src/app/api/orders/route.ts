@@ -3,7 +3,7 @@ import { CreateOrderSchema } from '@/lib/schemas';
 import { normalizeBelgianPhone } from '@/lib/phone';
 import { supabaseAdmin } from '@/lib/supabase';
 import { sendTelegramNotification } from '@/lib/telegram';
-import { UNIT_PRICE_CENTS, MIN_ORDER_UNITS } from '@/lib/flavors';
+import { getSettings } from '@/lib/settings';
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,14 +14,18 @@ export async function POST(request: NextRequest) {
     }
 
     const data = parsed.data;
+    const settings = await getSettings();
     const phoneE164 = normalizeBelgianPhone(data.customerPhone)!;
-    const totalUnits = data.items.reduce((sum, item) => sum + item.quantity, 0);
 
-    if (totalUnits < MIN_ORDER_UNITS) {
-      return NextResponse.json({ error: `Pedido mínimo de ${MIN_ORDER_UNITS} unidades` }, { status: 400 });
+    const totalUnits = data.items.reduce((sum, item) => sum + item.quantity, 0);
+    const subtotalCents = totalUnits * settings.unitPriceEurCents;
+
+    if (subtotalCents < settings.minOrderEurCents) {
+      const minEur = (settings.minOrderEurCents / 100).toFixed(2).replace('.', ',');
+      return NextResponse.json({ error: `Pedido mínimo de € ${minEur}` }, { status: 400 });
     }
 
-    const totalCents = totalUnits * UNIT_PRICE_CENTS;
+    const totalWithFreight = subtotalCents + settings.freightEurCents;
 
     const { data: order, error: orderError } = await supabaseAdmin
       .from('orders')
@@ -38,8 +42,8 @@ export async function POST(request: NextRequest) {
         change_amount_eur_cents: data.changeAmountEurCents || null,
         notes: data.notes || null,
         total_units: totalUnits,
-        total_price_eur_cents: totalCents,
-        freight_eur_cents: 0,
+        total_price_eur_cents: subtotalCents,
+        freight_eur_cents: settings.freightEurCents,
         status: 'novo',
       })
       .select()
@@ -53,9 +57,9 @@ export async function POST(request: NextRequest) {
     const itemsToInsert = data.items.map((item) => ({
       order_id: order.id,
       flavor_name: item.flavorName,
-      unit_price_eur_cents: UNIT_PRICE_CENTS,
+      unit_price_eur_cents: settings.unitPriceEurCents,
       quantity: item.quantity,
-      line_total_eur_cents: item.quantity * UNIT_PRICE_CENTS,
+      line_total_eur_cents: item.quantity * settings.unitPriceEurCents,
     }));
 
     const { data: insertedItems, error: itemsError } = await supabaseAdmin
@@ -65,7 +69,8 @@ export async function POST(request: NextRequest) {
 
     if (itemsError) console.error('Items insert error:', itemsError);
 
-    sendTelegramNotification(order, insertedItems || itemsToInsert.map((i, idx) => ({ id: String(idx), ...i }))).catch(console.error);
+    const orderForTelegram = { ...order, freight_eur_cents: settings.freightEurCents, total_with_freight: totalWithFreight };
+    sendTelegramNotification(orderForTelegram, insertedItems || itemsToInsert.map((i, idx) => ({ id: String(idx), ...i }))).catch(console.error);
 
     return NextResponse.json({ orderId: order.id }, { status: 201 });
   } catch (error) {

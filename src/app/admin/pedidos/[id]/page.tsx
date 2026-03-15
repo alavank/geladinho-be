@@ -14,6 +14,11 @@ function formatDate(dateStr: string): string {
   }).format(new Date(dateStr));
 }
 
+function makeWhatsAppLink(phoneE164: string): string {
+  const digits = phoneE164.replace(/\D/g, '');
+  return `https://wa.me/${digits}`;
+}
+
 export default function OrderDetailPage() {
   const params = useParams();
   const id = params.id as string;
@@ -24,12 +29,6 @@ export default function OrderDetailPage() {
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState('');
 
-  // Freight state
-  const [freightInput, setFreightInput] = useState('');
-  const [freightDirty, setFreightDirty] = useState(false);
-  const [savingFreight, setSavingFreight] = useState(false);
-  const [freightSaved, setFreightSaved] = useState(false);
-
   useEffect(() => { fetchOrder(); }, [id]);
 
   const fetchOrder = async () => {
@@ -38,7 +37,6 @@ export default function OrderDetailPage() {
     if (!res.ok) { setError('Pedido não encontrado'); setLoading(false); return; }
     const data = await res.json();
     setOrder(data);
-    setFreightInput(data.freight_eur_cents > 0 ? (data.freight_eur_cents / 100).toFixed(2) : '');
     setLoading(false);
   };
 
@@ -53,30 +51,6 @@ export default function OrderDetailPage() {
     if (res.ok) setOrder((prev) => prev ? { ...prev, status: newStatus } : prev);
     else setError('Erro ao atualizar status');
     setUpdating(false);
-  };
-
-  const saveFreight = async () => {
-    if (!order) return;
-    setSavingFreight(true);
-    const cents = Math.round(parseFloat(freightInput.replace(',', '.') || '0') * 100);
-    const res = await fetch(`/api/admin/orders/${id}/freight`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ freightEurCents: isNaN(cents) ? 0 : cents }),
-    });
-    if (res.ok) {
-      setOrder((prev) => prev ? { ...prev, freight_eur_cents: isNaN(cents) ? 0 : cents } : prev);
-      setFreightDirty(false);
-      setFreightSaved(true);
-      setTimeout(() => setFreightSaved(false), 3000);
-    } else {
-      setError('Erro ao salvar frete');
-    }
-    setSavingFreight(false);
-  };
-
-  const openBonDeCommande = () => {
-    window.open(`/admin/pedidos/${id}/bon`, '_blank');
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center text-gray-400">⏳ Carregando...</div>;
@@ -108,9 +82,17 @@ export default function OrderDetailPage() {
 
         {/* Actions */}
         <div className="flex flex-wrap gap-3">
+          <a
+            href={makeWhatsAppLink(order.customer_phone_e164)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white font-semibold px-5 py-2.5 rounded-xl transition-all shadow-sm"
+          >
+            💬 WhatsApp do cliente
+          </a>
           <button
-            onClick={openBonDeCommande}
-            className="flex items-center gap-2 bg-gray-800 hover:bg-gray-900 text-white font-semibold px-5 py-2.5 rounded-xl transition-all shadow-sm hover:shadow-md"
+            onClick={() => window.open(`/admin/pedidos/${id}/bon`, '_blank')}
+            className="flex items-center gap-2 bg-gray-800 hover:bg-gray-900 text-white font-semibold px-5 py-2.5 rounded-xl transition-all shadow-sm"
           >
             🖨️ Gerar Bon de Commande (PDF)
           </button>
@@ -146,8 +128,18 @@ export default function OrderDetailPage() {
               <dd className="font-semibold text-gray-900 mt-1">{order.customer_name}</dd>
             </div>
             <div>
-              <dt className="text-gray-500 text-xs uppercase tracking-wide">Telefone (WhatsApp)</dt>
-              <dd className="font-semibold text-gray-900 mt-1 font-mono">{order.customer_phone_e164}</dd>
+              <dt className="text-gray-500 text-xs uppercase tracking-wide">Telefone</dt>
+              <dd className="mt-1 flex items-center gap-2 flex-wrap">
+                <span className="font-semibold text-gray-900 font-mono">{order.customer_phone_e164}</span>
+                <a
+                  href={makeWhatsAppLink(order.customer_phone_e164)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 bg-green-100 text-green-700 hover:bg-green-200 text-xs font-semibold px-2 py-1 rounded-lg transition-colors"
+                >
+                  💬 WhatsApp
+                </a>
+              </dd>
             </div>
             <div className="sm:col-span-2">
               <dt className="text-gray-500 text-xs uppercase tracking-wide">Endereço</dt>
@@ -176,7 +168,7 @@ export default function OrderDetailPage() {
           </dl>
         </div>
 
-        {/* Items + Freight */}
+        {/* Items */}
         <div className="card p-5">
           <h2 className="font-bold text-gray-800 mb-4">🍭 Itens do Pedido</h2>
           <table className="w-full text-sm mb-4">
@@ -198,51 +190,26 @@ export default function OrderDetailPage() {
             </tbody>
           </table>
 
-          {/* Totals section */}
-          <div className="border-t-2 border-gray-200 pt-4 space-y-3">
+          <div className="border-t-2 border-gray-200 pt-4 space-y-2">
             <div className="flex justify-between text-sm text-gray-600">
               <span>Subtotal ({order.total_units} unidades)</span>
               <span className="font-bold">{formatEUR(order.total_price_eur_cents)}</span>
             </div>
-
-            {/* Freight row */}
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-gray-600 shrink-0">Valor do frete</span>
-              <div className="flex items-center gap-2 ml-auto">
-                <span className="text-gray-400 text-sm">€</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  placeholder="0,00"
-                  value={freightInput}
-                  onChange={(e) => { setFreightInput(e.target.value); setFreightDirty(true); setFreightSaved(false); }}
-                  className="w-24 border border-gray-300 rounded-lg px-3 py-1.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-brand-400"
-                />
-                <button
-                  onClick={saveFreight}
-                  disabled={savingFreight || !freightDirty}
-                  className="bg-brand-600 hover:bg-brand-700 disabled:opacity-40 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-all whitespace-nowrap"
-                >
-                  {savingFreight ? '...' : 'Adicionar Frete'}
-                </button>
+            {freightCents > 0 && (
+              <div className="flex justify-between text-sm text-gray-600">
+                <span>Frete</span>
+                <span className="font-bold">{formatEUR(freightCents)}</span>
               </div>
-            </div>
-
-            {freightSaved && (
-              <p className="text-green-600 text-xs text-right">✅ Frete salvo com sucesso!</p>
             )}
-
-            {/* Grand total */}
-            <div className="flex justify-between text-xl font-bold border-t border-gray-200 pt-3">
-              <span>TOTAL GERAL</span>
+            <div className="flex justify-between text-xl font-bold border-t border-gray-200 pt-2">
+              <span>TOTAL</span>
               <span className="text-brand-600">{formatEUR(grandTotal)}</span>
             </div>
           </div>
         </div>
 
         <div className="card p-4 bg-gray-50">
-          <p className="text-xs text-gray-400">ID completo: <span className="font-mono">{order.id}</span></p>
+          <p className="text-xs text-gray-400">ID: <span className="font-mono">{order.id}</span></p>
         </div>
       </div>
     </div>

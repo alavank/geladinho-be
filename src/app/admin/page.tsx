@@ -3,17 +3,18 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+<<<<<<< HEAD
 import { Order, ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from '@/types';
+=======
+import { Order, OrderStatus, ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from '@/types';
+>>>>>>> d04f130 (geladinho v3)
 import { formatEUR } from '@/lib/flavors';
 
 function formatDate(dateStr: string): string {
   return new Intl.DateTimeFormat('pt-BR', {
     timeZone: 'Europe/Brussels',
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
   }).format(new Date(dateStr));
 }
 
@@ -25,14 +26,8 @@ export default function AdminPage() {
 
   const fetchOrders = async () => {
     const res = await fetch('/api/admin/orders');
-    if (res.status === 401) {
-      router.push('/admin/login');
-      return;
-    }
-    if (!res.ok) {
-      setError('Erro ao carregar pedidos');
-      return;
-    }
+    if (res.status === 401) { router.push('/admin/login'); return; }
+    if (!res.ok) { setError('Erro ao carregar pedidos'); return; }
     const data = await res.json();
     setOrders(data);
     setLoading(false);
@@ -40,7 +35,6 @@ export default function AdminPage() {
 
   useEffect(() => {
     fetchOrders();
-    // Auto-refresh every 30 seconds
     const interval = setInterval(fetchOrders, 30000);
     return () => clearInterval(interval);
   }, []);
@@ -57,33 +51,28 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen">
-      {/* Header */}
       <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-30 shadow-sm">
         <div className="flex items-center gap-3">
           <span className="text-2xl">🧊</span>
           <div>
-            <h1 className="font-bold text-gray-900">Painel Admin</h1>
-            <p className="text-xs text-gray-500">Geladinho BE</p>
+            <h1 className="font-bold text-gray-900">Geladinho Madamme Simone</h1>
+            <p className="text-xs text-gray-500">Painel Admin</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <button
-            onClick={fetchOrders}
-            className="text-sm text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50"
-          >
+          <Link href="/admin/configuracoes" className="text-sm text-gray-600 hover:text-gray-900 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50 font-medium">
+            ⚙️ Configurações
+          </Link>
+          <button onClick={fetchOrders} className="text-sm text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50">
             🔄 Atualizar
           </button>
-          <button
-            onClick={handleLogout}
-            className="text-sm text-red-600 hover:text-red-700 border border-red-200 rounded-lg px-3 py-1.5 hover:bg-red-50"
-          >
+          <button onClick={handleLogout} className="text-sm text-red-600 hover:text-red-700 border border-red-200 rounded-lg px-3 py-1.5 hover:bg-red-50">
             Sair
           </button>
         </div>
       </header>
 
       <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-8">
           {(Object.keys(ORDER_STATUS_LABELS) as Array<keyof typeof ORDER_STATUS_LABELS>).map((status) => (
             <div key={status} className="card p-4 text-center">
@@ -93,9 +82,7 @@ export default function AdminPage() {
           ))}
         </div>
 
-        <h2 className="text-xl font-bold text-gray-900 mb-4">
-          Todos os Pedidos ({orders.length})
-        </h2>
+        <h2 className="text-xl font-bold text-gray-900 mb-4">Todos os Pedidos ({orders.length})</h2>
 
         {loading ? (
           <div className="text-center py-12 text-gray-400">⏳ Carregando...</div>
@@ -112,19 +99,27 @@ export default function AdminPage() {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    {['Data/Hora', 'Nome', 'Telefone', 'Cidade', 'Pagamento', 'Unid.', 'Total €', 'Status', ''].map((h) => (
-                      <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">
-                        {h}
-                      </th>
+                    {['Data/Hora', 'Nome', 'Telefone', 'Comuna', 'Troco', 'Unid.', 'Total €', 'Status', ''].map((h) => (
+                      <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {orders.map((order) => (
                     <tr key={order.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-4 py-3 whitespace-nowrap text-gray-600 text-xs">
-                        {formatDate(order.created_at)}
+                      <td className="px-4 py-3 whitespace-nowrap text-gray-600 text-xs">{formatDate(order.created_at)}</td>
+                      <td className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">{order.customer_name}</td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <a
+                          href={`https://wa.me/${order.customer_phone_e164.replace(/\D/g, '')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-green-600 hover:text-green-800 font-mono text-xs underline"
+                        >
+                          {order.customer_phone_e164}
+                        </a>
                       </td>
+<<<<<<< HEAD
                       <td className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">
                         {order.customer_name}
                       </td>
@@ -139,20 +134,25 @@ export default function AdminPage() {
 </td>
                       <td className="px-4 py-3 text-center font-semibold text-gray-900">
                         {order.total_units}
+=======
+                      <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{order.address_city}</td>
+                      <td className="px-4 py-3 text-center">
+                        {order.needs_change
+                          ? <span className="text-amber-600 font-semibold text-xs">💵 Sim</span>
+                          : <span className="text-gray-400 text-xs">Não</span>}
+>>>>>>> d04f130 (geladinho v3)
                       </td>
+                      <td className="px-4 py-3 text-center font-semibold text-gray-900">{order.total_units}</td>
                       <td className="px-4 py-3 font-bold text-brand-600 whitespace-nowrap">
-                        {formatEUR(order.total_price_eur_cents)}
+                        {formatEUR(order.total_price_eur_cents + (order.freight_eur_cents || 0))}
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex px-2 py-1 rounded-full text-xs font-semibold ${ORDER_STATUS_COLORS[order.status]}`}>
-                          {ORDER_STATUS_LABELS[order.status]}
+                        <span className={`inline-flex px-2 py-1 rounded-full text-xs font-semibold ${ORDER_STATUS_COLORS[order.status as OrderStatus]}`}>
+                          {ORDER_STATUS_LABELS[order.status as OrderStatus]}
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <Link
-                          href={`/admin/pedidos/${order.id}`}
-                          className="text-brand-600 hover:text-brand-800 font-semibold text-xs whitespace-nowrap"
-                        >
+                        <Link href={`/admin/pedidos/${order.id}`} className="text-brand-600 hover:text-brand-800 font-semibold text-xs whitespace-nowrap">
                           Ver →
                         </Link>
                       </td>

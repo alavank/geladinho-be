@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
-import { FLAVORS, UNIT_PRICE_CENTS, MIN_ORDER_UNITS, formatEUR } from '@/lib/flavors';
+import { useState, useCallback, useMemo, useEffect } from 'react';
+import { FLAVORS, formatEUR } from '@/lib/flavors';
+import { SystemSettings } from '@/lib/settings';
 import { CartItem } from '@/types';
 import FlavorCard from '@/components/FlavorCard';
 import OrderForm from '@/components/OrderForm';
@@ -20,49 +21,62 @@ export interface FormData {
   addressPostalCode: string;
   addressCommune: string;
   needsChange: boolean;
-  changeAmount: string; // valor em euros que o cliente tem em mãos (string para input)
+  changeAmount: string;
   notes: string;
 }
 
 const EMPTY_FORM: FormData = {
-  customerName: '',
-  customerPhone: '',
-  addressStreet: '',
-  addressNumber: '',
-  addressPostalCode: '',
-  addressCommune: '',
-  needsChange: false,
-  changeAmount: '',
-  notes: '',
+  customerName: '', customerPhone: '',
+  addressStreet: '', addressNumber: '',
+  addressPostalCode: '', addressCommune: '',
+  needsChange: false, changeAmount: '', notes: '',
 };
 
 export default function HomePage() {
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [formData, setFormData] = useState<FormData>(EMPTY_FORM);
   const [step, setStep] = useState<Step>('catalog');
-  const [orderId, setOrderId] = useState<string>('');
+  const [orderId, setOrderId] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const [settings, setSettings] = useState<SystemSettings | null>(null);
+  const [loadingSettings, setLoadingSettings] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/settings')
+      .then((r) => r.json())
+      .then((s) => { setSettings(s); setLoadingSettings(false); })
+      .catch(() => setLoadingSettings(false));
+  }, []);
+
+  const activeFlavors = useMemo(() => {
+    if (!settings || settings.activeFlavorIds.length === 0) return FLAVORS;
+    return FLAVORS.filter((f) => settings.activeFlavorIds.includes(f.id));
+  }, [settings]);
+
+  const unitPrice = settings?.unitPriceEurCents ?? 170;
+  const freightCents = settings?.freightEurCents ?? 0;
+  const minOrderCents = settings?.minOrderEurCents ?? 8500;
 
   const cartItems: CartItem[] = useMemo(
-    () =>
-      FLAVORS.filter((f) => (quantities[f.id] || 0) > 0).map((f) => ({
-        flavorId: f.id,
-        flavorName: f.name,
-        quantity: quantities[f.id] || 0,
-      })),
-    [quantities]
+    () => activeFlavors
+      .filter((f) => (quantities[f.id] || 0) > 0)
+      .map((f) => ({ flavorId: f.id, flavorName: f.name, quantity: quantities[f.id] || 0 })),
+    [quantities, activeFlavors]
   );
 
   const totalUnits = useMemo(() => cartItems.reduce((s, i) => s + i.quantity, 0), [cartItems]);
-  const totalCents = totalUnits * UNIT_PRICE_CENTS;
+  const subtotalCents = totalUnits * unitPrice;
+  const grandTotalCents = subtotalCents + freightCents;
 
   const updateQuantity = useCallback((flavorId: string, value: number) => {
     setQuantities((prev) => ({ ...prev, [flavorId]: Math.max(0, value) }));
   }, []);
 
+  const canProceed = subtotalCents >= minOrderCents;
+
   const handleProceed = () => {
-    if (totalUnits < MIN_ORDER_UNITS) return;
+    if (!canProceed) return;
     setStep('form');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -116,10 +130,7 @@ export default function HomePage() {
       <header className="bg-gradient-to-r from-brand-600 to-ice-500 text-white sticky top-0 z-40 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-3">
           <span className="text-3xl">🧊</span>
-          <div>
-            <h1 className="text-xl font-bold leading-tight">Geladinho do Brasil</h1>
-            <p className="text-xs text-white/80">Entrega na Bélgica 🇧🇪</p>
-          </div>
+          <h1 className="text-xl font-bold leading-tight">Geladinho Madamme Simone</h1>
           {step !== 'catalog' && (
             <button
               onClick={() => setStep(step === 'form' ? 'catalog' : 'form')}
@@ -140,9 +151,7 @@ export default function HomePage() {
           ].map((s) => (
             <span
               key={s.key}
-              className={`font-semibold ${
-                step === s.key ? 'text-brand-600 border-b-2 border-brand-600 pb-2' : 'text-gray-400'
-              }`}
+              className={`font-semibold ${step === s.key ? 'text-brand-600 border-b-2 border-brand-600 pb-2' : 'text-gray-400'}`}
             >
               {s.label}
             </span>
@@ -156,19 +165,25 @@ export default function HomePage() {
             <>
               <div className="mb-6">
                 <h2 className="text-2xl font-bold text-gray-900">🍭 Escolha seus sabores</h2>
-                <p className="text-gray-500 mt-1">
-                  Mínimo de {MIN_ORDER_UNITS} unidades.{' '}
-                  <span className="font-semibold text-brand-600">{formatEUR(UNIT_PRICE_CENTS)} cada</span>
-                </p>
+                {loadingSettings ? (
+                  <p className="text-gray-400 mt-1 text-sm">Carregando...</p>
+                ) : (
+                  <p className="text-gray-500 mt-1">
+                    Pedido mínimo: <span className="font-semibold text-brand-600">{formatEUR(minOrderCents)}</span>
+                    {freightCents > 0 && <> · Frete: <span className="font-semibold text-brand-600">{formatEUR(freightCents)}</span></>}
+                    {' '}· <span className="font-semibold text-brand-600">{formatEUR(unitPrice)}</span> cada
+                  </p>
+                )}
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                {FLAVORS.map((flavor, index) => (
+                {activeFlavors.map((flavor, index) => (
                   <FlavorCard
                     key={flavor.id}
                     flavor={flavor}
                     index={index}
                     quantity={quantities[flavor.id] || 0}
                     onQuantityChange={(val) => updateQuantity(flavor.id, val)}
+                    unitPriceCents={unitPrice}
                   />
                 ))}
               </div>
@@ -181,7 +196,9 @@ export default function HomePage() {
               onSubmit={handleFormSubmit}
               cartItems={cartItems}
               totalUnits={totalUnits}
-              totalCents={totalCents}
+              subtotalCents={subtotalCents}
+              freightCents={freightCents}
+              grandTotalCents={grandTotalCents}
             />
           )}
 
@@ -190,7 +207,9 @@ export default function HomePage() {
               formData={formData}
               cartItems={cartItems}
               totalUnits={totalUnits}
-              totalCents={totalCents}
+              subtotalCents={subtotalCents}
+              freightCents={freightCents}
+              grandTotalCents={grandTotalCents}
               onConfirm={handleConfirm}
               onBack={() => setStep('form')}
               submitting={submitting}
@@ -203,14 +222,24 @@ export default function HomePage() {
           <DesktopSidebar
             cartItems={cartItems}
             totalUnits={totalUnits}
-            totalCents={totalCents}
+            subtotalCents={subtotalCents}
+            freightCents={freightCents}
+            grandTotalCents={grandTotalCents}
+            minOrderCents={minOrderCents}
             onProceed={handleProceed}
           />
         )}
       </div>
 
       {step === 'catalog' && (
-        <StickyCart totalUnits={totalUnits} totalCents={totalCents} onProceed={handleProceed} />
+        <StickyCart
+          totalUnits={totalUnits}
+          subtotalCents={subtotalCents}
+          freightCents={freightCents}
+          grandTotalCents={grandTotalCents}
+          minOrderCents={minOrderCents}
+          onProceed={handleProceed}
+        />
       )}
     </div>
   );

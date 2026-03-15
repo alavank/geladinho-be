@@ -25,12 +25,6 @@ export default function BonDeCommandePage() {
       .then((data) => { setOrder(data); setLoading(false); });
   }, [id]);
 
-  useEffect(() => {
-    if (order && !loading) {
-      setTimeout(() => window.print(), 500);
-    }
-  }, [order, loading]);
-
   if (loading || !order) {
     return <div style={{ padding: 40, fontFamily: 'sans-serif' }}>Carregando...</div>;
   }
@@ -48,7 +42,6 @@ export default function BonDeCommandePage() {
         .page { width: 210mm; min-height: 297mm; margin: 0 auto; padding: 20mm 18mm; }
         .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #111; padding-bottom: 14px; margin-bottom: 20px; }
         .logo-block h1 { font-size: 26px; font-weight: 900; letter-spacing: -1px; }
-        .logo-block p { font-size: 11px; color: #555; margin-top: 2px; }
         .bon-title { text-align: right; }
         .bon-title h2 { font-size: 22px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; }
         .bon-title p { font-size: 11px; color: #555; margin-top: 4px; }
@@ -69,19 +62,19 @@ export default function BonDeCommandePage() {
         .total-row.grand { font-size: 16px; font-weight: 900; border-bottom: none; border-top: 3px solid #111; padding-top: 10px; margin-top: 6px; }
         .troco-box { background: #fffbe6; border: 1px solid #f59e0b; border-radius: 6px; padding: 10px 14px; font-size: 12px; }
         .footer { margin-top: 30px; border-top: 1px solid #ddd; padding-top: 12px; text-align: center; font-size: 10px; color: #aaa; }
+        .print-btn { position: fixed; bottom: 20px; right: 20px; background: #111; color: #fff; border: none; border-radius: 8px; padding: 12px 22px; font-weight: 700; cursor: pointer; font-size: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+        .print-btn:hover { background: #333; }
         @media print {
           @page { size: A4; margin: 0; }
           .page { padding: 15mm 14mm; }
-          .no-print { display: none; }
+          .print-btn { display: none; }
         }
       `}</style>
 
       <div className="page">
-        {/* Header */}
         <div className="header">
           <div className="logo-block">
-            <h1>🧊 Geladinho do Brasil</h1>
-            <p>Entrega de geladinhos na Bélgica</p>
+            <h1>Geladinho Madamme Simone</h1>
           </div>
           <div className="bon-title">
             <h2>Bon de Commande</h2>
@@ -90,7 +83,6 @@ export default function BonDeCommandePage() {
           </div>
         </div>
 
-        {/* Client info */}
         <div className="section">
           <div className="section-title">Informações do Cliente</div>
           <div className="info-grid">
@@ -111,18 +103,15 @@ export default function BonDeCommandePage() {
           </div>
         </div>
 
-        {/* Troco */}
         {order.needs_change && (
           <div className="section">
             <div className="section-title">Troco</div>
             <div className="troco-box">
-              💵 Cliente tem <strong>{formatEUR(order.change_amount_eur_cents || 0)}</strong> em mãos.
-              Troco a levar: <strong>{formatEUR(Math.max(0, (order.change_amount_eur_cents || 0) - grandTotal))}</strong>
+              Troco para: <strong>{formatEUR(order.change_amount_eur_cents || 0)}</strong>
             </div>
           </div>
         )}
 
-        {/* Items */}
         <div className="section">
           <div className="section-title">Itens do Pedido</div>
           <table>
@@ -170,19 +159,13 @@ export default function BonDeCommandePage() {
         )}
 
         <div className="footer">
-          Geladinho do Brasil — Bélgica · Pedido #{shortId} · {formatDate(order.created_at)}
+          Geladinho Madamme Simone · Pedido #{shortId} · {formatDate(order.created_at)}
         </div>
       </div>
 
-      {/* Print button (hidden on print) */}
-      <div className="no-print" style={{ position: 'fixed', bottom: 20, right: 20 }}>
-        <button
-          onClick={() => window.print()}
-          style={{ background: '#111', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 20px', fontWeight: 700, cursor: 'pointer', fontSize: 14 }}
-        >
-          🖨️ Imprimir / Salvar PDF
-        </button>
-      </div>
+      <button className="print-btn" onClick={() => window.print()}>
+        🖨️ Imprimir / Salvar PDF
+      </button>
     </>
   );
 }
