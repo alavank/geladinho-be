@@ -1,5 +1,3 @@
-import { FLAVORS } from './flavors';
-
 export interface FlavorConfig {
   id: string;
   name: string;
@@ -8,20 +6,25 @@ export interface FlavorConfig {
 }
 
 export interface SystemSettings {
+  // B2C
   flavorConfigs: FlavorConfig[];
   freightEurCents: number;
   minOrderEurCents: number;
+  // B2B
+  b2bFlavorConfigs: FlavorConfig[];
+  b2bFreightEurCents: number;
+  b2bMinTotalUnits: number;
+  b2bMinPerFlavor: number;
 }
 
 export function getDefaultSettings(): SystemSettings {
   return {
-    flavorConfigs: FLAVORS.map((f) => ({
-      id: f.id,
-      name: f.name,
-      active: true,
-      priceEurCents: f.defaultPriceEurCents,
-    })),
+    flavorConfigs: [],
     freightEurCents: 0,
-    minOrderEurCents: 8500,
+    minOrderEurCents: 5000,
+    b2bFlavorConfigs: [],
+    b2bFreightEurCents: 0,
+    b2bMinTotalUnits: 100,
+    b2bMinPerFlavor: 5,
   };
 }

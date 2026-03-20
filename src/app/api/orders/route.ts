@@ -1,9 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { CreateOrderSchema } from '@/lib/schemas';
+import { z } from 'zod';
 import { normalizeBelgianPhone } from '@/lib/phone';
 import { supabaseAdmin } from '@/lib/supabase';
 import { sendTelegramNotification } from '@/lib/telegram';
 import { getSettings } from '@/lib/settings-server';
+
+const OrderItemSchema = z.object({
+  flavorId: z.string(),
+  flavorName: z.string().min(1),
+  quantity: z.number().int().positive(),
+});
+
+const CreateOrderSchema = z.object({
+  channel: z.enum(['b2c', 'b2b']).default('b2c'),
+  // B2C fields
+  customerName: z.string().min(2).max(150).optional(),
+  // B2B fields
+  establishmentName: z.string().min(2).max(200).optional(),
+  customerEmail: z.string().email().optional().or(z.literal('')),
+  // Common
+  customerPhone: z.string().refine(
+    (val) => normalizeBelgianPhone(val) !== null,
+    'Número de telefone belga inválido'
+  ),
+  addressStreet: z.string().min(1).max(200),
+  addressNumber: z.string().min(1).max(20),
+  addressPostalCode: z.string().regex(/^\d{4}$/),
+  addressCommune: z.string().min(1).max(100),
+  needsChange: z.boolean(),
+  changeAmountEurCents: z.number().int().positive().optional(),
+  notes: z.string().max(500).optional(),
+  items: z.array(OrderItemSchema).min(1),
+});
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,38 +44,65 @@ export async function POST(request: NextRequest) {
     const data = parsed.data;
     const settings = await getSettings();
     const phoneE164 = normalizeBelgianPhone(data.customerPhone)!;
+    const isB2B = data.channel === 'b2b';
 
+    // Get correct flavor configs
+    const flavorConfigs = isB2B ? settings.b2bFlavorConfigs : settings.flavorConfigs;
+
+    // Calculate per-item pricing
     const itemsWithPrice = data.items.map((item) => {
-      const fc = settings.flavorConfigs.find((f) => f.id === item.flavorId);
-      const price = fc?.priceEurCents ?? 170;
+      const fc = flavorConfigs.find((f) => f.id === item.flavorId);
+      const price = fc?.priceEurCents ?? (isB2B ? 170 : 250);
       return { ...item, priceEurCents: price, lineTotal: price * item.quantity };
     });
 
     const totalUnits = itemsWithPrice.reduce((s, i) => s + i.quantity, 0);
     const subtotalCents = itemsWithPrice.reduce((s, i) => s + i.lineTotal, 0);
+    const freightCents = isB2B ? settings.b2bFreightEurCents : settings.freightEurCents;
 
-    if (subtotalCents < settings.minOrderEurCents) {
+    // B2C validation: minimum order value
+    if (!isB2B && subtotalCents < settings.minOrderEurCents) {
       const minEur = (settings.minOrderEurCents / 100).toFixed(2).replace('.', ',');
       return NextResponse.json({ error: `Pedido mínimo de € ${minEur}` }, { status: 400 });
     }
 
+    // B2B validation: minimum total units + minimum per flavor
+    if (isB2B) {
+      if (totalUnits < settings.b2bMinTotalUnits) {
+        return NextResponse.json({ error: `Pedido mínimo de ${settings.b2bMinTotalUnits} unidades para revenda` }, { status: 400 });
+      }
+      for (const item of itemsWithPrice) {
+        if (item.quantity < settings.b2bMinPerFlavor) {
+          return NextResponse.json({ error: `Mínimo de ${settings.b2bMinPerFlavor} unidades por sabor (${item.flavorName})` }, { status: 400 });
+        }
+      }
+    }
+
+    const customerName = isB2B
+      ? (data.establishmentName || 'Estabelecimento')
+      : (data.customerName || 'Cliente');
+
     const { data: order, error: orderError } = await supabaseAdmin
       .from('orders')
       .insert({
-        customer_name: data.customerName,
+        channel: data.channel,
+        customer_name: customerName,
         customer_phone_e164: phoneE164,
+        customer_email: data.customerEmail || null,
+        establishment_name: data.establishmentName || null,
         address_street: data.addressStreet,
         address_number: data.addressNumber,
         address_unit: null,
         address_postal_code: data.addressPostalCode,
         address_city: data.addressCommune,
         address_country: 'Belgium',
+        payment_method: 'dinheiro',
         needs_change: data.needsChange,
         change_amount_eur_cents: data.changeAmountEurCents || null,
         notes: data.notes || null,
         total_units: totalUnits,
         total_price_eur_cents: subtotalCents,
-        freight_eur_cents: settings.freightEurCents,
+        freight_eur_cents: freightCents,
         status: 'novo',
       })
       .select()

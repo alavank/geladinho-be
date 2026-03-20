@@ -13,7 +13,11 @@ const FlavorConfigSchema = z.object({
 const SettingsSchema = z.object({
   flavorConfigs: z.array(FlavorConfigSchema),
   freightEurCents: z.number().int().min(0),
-  minOrderEurCents: z.number().int().positive(),
+  minOrderEurCents: z.number().int().min(0),
+  b2bFlavorConfigs: z.array(FlavorConfigSchema),
+  b2bFreightEurCents: z.number().int().min(0),
+  b2bMinTotalUnits: z.number().int().positive(),
+  b2bMinPerFlavor: z.number().int().positive(),
 });
 
 export async function GET(request: NextRequest) {

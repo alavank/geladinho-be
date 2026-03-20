@@ -1,4 +1,5 @@
 export type OrderStatus = 'novo' | 'em_preparo' | 'em_rota' | 'entregue' | 'cancelado';
+export type OrderChannel = 'b2c' | 'b2b';
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   novo: 'Novo',
@@ -15,11 +16,6 @@ export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
   entregue: 'bg-green-100 text-green-800',
   cancelado: 'bg-red-100 text-red-800',
 };
-
-export interface Flavor {
-  id: string;
-  name: string;
-}
 
 export interface CartItem {
   flavorId: string;
@@ -39,14 +35,18 @@ export interface OrderItem {
 export interface Order {
   id: string;
   created_at: string;
+  channel: OrderChannel;
   customer_name: string;
   customer_phone_e164: string;
+  customer_email?: string | null;
+  establishment_name?: string | null;
   address_street: string;
   address_number: string;
   address_unit: string | null;
   address_postal_code: string;
   address_city: string;
   address_country: string;
+  payment_method: string;
   needs_change: boolean;
   change_amount_eur_cents: number | null;
   notes: string | null;
@@ -55,17 +55,4 @@ export interface Order {
   freight_eur_cents: number;
   status: OrderStatus;
   order_items?: OrderItem[];
-}
-
-export interface CreateOrderPayload {
-  customerName: string;
-  customerPhone: string;
-  addressStreet: string;
-  addressNumber: string;
-  addressPostalCode: string;
-  addressCommune: string;
-  needsChange: boolean;
-  changeAmountEurCents?: number;
-  notes?: string;
-  items: { flavorName: string; quantity: number }[];
 }
