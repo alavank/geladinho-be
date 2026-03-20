@@ -35,7 +35,7 @@ export default function AdminLoginPage() {
     <div className="min-h-screen flex items-center justify-center px-4" style={{ background: 'linear-gradient(135deg, #C41230 0%, #4A1E00 100%)' }}>
       <div className="max-w-sm w-full">
         <div className="text-center mb-8">
-          <Image src="/logo.png" alt="Madame Simone" width={240} height={88} className="mx-auto h-20 w-auto object-contain" style={{ filter: 'brightness(0) invert(1)' }} />
+          <Image src="/logo.png" alt="Madame Simone" width={240} height={88} className="mx-auto h-20 w-auto object-contain" />
           <p className="text-white/70 text-sm mt-3">Painel Administrativo</p>
         </div>
         <div className="card p-6 shadow-2xl">

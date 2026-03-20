@@ -215,7 +215,7 @@ export default function RevendaPage() {
       {/* Header */}
       <header style={{ background: 'linear-gradient(135deg, #0EA5E9 0%, #0369A1 50%, #1E3A5F 100%)' }} className="sticky top-0 z-40 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-4">
-          <Image src="/logo.png" alt="Madame Simone" width={160} height={56} className="h-12 w-auto object-contain" style={{ filter: 'brightness(0) invert(1)' }} />
+          <Image src="/logo.png" alt="Madame Simone" width={160} height={56} className="h-12 w-auto object-contain" />
           <div className="ml-2 border-l border-white/30 pl-4">
             <p className="text-white text-xs font-semibold opacity-80">Portal</p>
             <p className="text-white text-sm font-bold">Revenda B2B</p>
