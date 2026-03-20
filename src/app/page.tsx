@@ -129,7 +129,7 @@ export default function HomePage() {
       {/* Header */}
       <header style={{ background: 'linear-gradient(135deg, #C41230 0%, #4A1E00 100%)' }} className="sticky top-0 z-40 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-4">
-          <Image src="/logo.png" alt="Madame Simone" width={160} height={56} className="h-12 w-auto object-contain" style={{ filter: 'brightness(0) invert(1)' }} />
+          <Image src="/logo.png" alt="Madame Simone" width={160} height={56} className="h-12 w-auto object-contain" />
           {step !== 'catalog' && (
             <button onClick={() => setStep(step === 'form' ? 'catalog' : 'form')} className="ml-auto text-white/90 hover:text-white text-sm underline">
               ← Voltar
