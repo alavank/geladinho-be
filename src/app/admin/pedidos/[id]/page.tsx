@@ -159,7 +159,7 @@ export default function OrderDetailPage() {
               </div>
             )}
 
-            {/* B2C name */}
+            {/* B2C name — só mostra se NÃO for B2B */}
             {!isB2B && (
               <div>
                 <dt className="text-gray-500 text-xs uppercase tracking-wide">Nome</dt>

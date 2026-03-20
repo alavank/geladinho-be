@@ -50,16 +50,24 @@ const ICE_COLORS = [
 // ─── Stepper Component ────────────────────────────────────────────────────────
 
 function Stepper({ quantity, onChange, min }: { quantity: number; onChange: (v: number) => void; min: number }) {
-  const isMin = quantity === 0 || (quantity > 0 && quantity <= min);
   return (
-    <div className="flex items-center gap-1">
-      <button onClick={() => onChange(Math.max(0, quantity === 0 ? 0 : quantity - 1))} disabled={quantity === 0}
-        className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-30 font-bold text-gray-700 flex items-center justify-center text-lg transition-colors">−</button>
-      <input type="number" min={0} value={quantity}
+    <div className="flex items-center gap-1 w-full">
+      <button
+        onClick={() => onChange(Math.max(0, quantity - 1))}
+        disabled={quantity === 0}
+        className="w-8 h-8 shrink-0 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-30 font-bold text-gray-700 flex items-center justify-center text-lg transition-colors"
+      >−</button>
+      <input
+        type="number"
+        min={0}
+        value={quantity}
         onChange={(e) => { const v = parseInt(e.target.value, 10); onChange(isNaN(v) ? 0 : Math.max(0, v)); }}
-        className="flex-1 text-center font-bold text-gray-900 border border-gray-200 rounded-lg py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 min-w-0" />
-      <button onClick={() => onChange(quantity === 0 ? min : quantity + 1)}
-        className="w-8 h-8 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold flex items-center justify-center text-lg transition-colors">+</button>
+        className="flex-1 min-w-0 text-center font-bold text-gray-900 border border-gray-200 rounded-lg py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+      />
+      <button
+        onClick={() => onChange(quantity === 0 ? min : quantity + 1)}
+        className="w-8 h-8 shrink-0 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold flex items-center justify-center text-lg transition-colors"
+      >+</button>
     </div>
   );
 }
@@ -215,7 +223,7 @@ export default function RevendaPage() {
       {/* Header */}
       <header style={{ background: 'linear-gradient(135deg, #0EA5E9 0%, #0369A1 50%, #1E3A5F 100%)' }} className="sticky top-0 z-40 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-4">
-          <Image src="/logo.png" alt="Madame Simone" width={160} height={56} className="h-12 w-auto object-contain" style={{ filter: 'brightness(0) invert(1)' }} />
+          <Image src="/logo.png" alt="Madame Simone" width={160} height={56} className="h-12 w-auto object-contain" />
           <div className="ml-2 border-l border-white/30 pl-4">
             
             <p className="text-white text-sm font-bold">Formulário de Pedidos de Geladinho - Revenda</p>
