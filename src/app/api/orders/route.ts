@@ -78,8 +78,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // B2B: customer_name = contact person, establishment_name = store name
+    // B2C: customer_name = customer full name
     const customerName = isB2B
-      ? (data.establishmentName || 'Estabelecimento')
+      ? (data.customerName || data.establishmentName || 'Contato')
       : (data.customerName || 'Cliente');
 
     const { data: order, error: orderError } = await supabaseAdmin

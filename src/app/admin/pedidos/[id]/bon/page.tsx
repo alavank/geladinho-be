@@ -25,12 +25,16 @@ export default function BonDeCommandePage() {
       .then((data) => { setOrder(data); setLoading(false); });
   }, [id]);
 
-  if (loading || !order) return <div style={{ padding: 40, fontFamily: 'sans-serif' }}>Carregando...</div>;
+  if (loading || !order) return (
+    <div style={{ padding: 40, fontFamily: 'sans-serif' }}>Carregando...</div>
+  );
 
   const freightCents = order.freight_eur_cents || 0;
   const grandTotal = order.total_price_eur_cents + freightCents;
   const shortId = order.id.substring(0, 8).toUpperCase();
   const items = order.order_items || [];
+  const temMaos = order.change_amount_eur_cents || 0;
+  const troco = Math.max(0, temMaos - grandTotal);
 
   return (
     <>
@@ -42,7 +46,7 @@ export default function BonDeCommandePage() {
         .logo-img { height: 56px; width: auto; }
         .bon-info { text-align: right; }
         .bon-info h2 { font-size: 20px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; color: #C41230; }
-        .bon-info p { font-size: 11px; color: #666; margin-top: 4px; }
+        .bon-info p { font-size: 11px; color: #555; margin-top: 4px; }
         .section { margin-bottom: 18px; }
         .section-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #9B7A2E; border-bottom: 1px solid #F5E8D0; padding-bottom: 4px; margin-bottom: 10px; }
         .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px; }
@@ -58,7 +62,7 @@ export default function BonDeCommandePage() {
         .totals { margin-top: 16px; margin-left: auto; width: 260px; }
         .total-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 13px; border-bottom: 1px solid #f0e8e0; }
         .total-row.grand { font-size: 17px; font-weight: 900; border-bottom: none; border-top: 3px solid #C41230; padding-top: 10px; margin-top: 6px; color: #C41230; }
-        .troco-box { background: #FFF5F5; border: 1px solid #FFC2C8; border-radius: 6px; padding: 10px 14px; font-size: 12px; color: #7A0A1E; }
+        .troco-box { background: #FFF7ED; border: 1px solid #FED7AA; border-radius: 6px; padding: 10px 14px; font-size: 12px; color: #9A3412; }
         .footer { margin-top: 30px; border-top: 1px solid #f0e8e0; padding-top: 12px; text-align: center; font-size: 10px; color: #bbb; }
         .print-btn { position: fixed; bottom: 20px; right: 20px; background: #C41230; color: #fff; border: none; border-radius: 10px; padding: 12px 22px; font-weight: 700; cursor: pointer; font-size: 14px; box-shadow: 0 4px 16px rgba(196,18,48,0.3); }
         .print-btn:hover { background: #A00D27; }
@@ -103,7 +107,7 @@ export default function BonDeCommandePage() {
           <div className="section">
             <div className="section-title">Troco</div>
             <div className="troco-box">
-              Troco para: <strong>{formatEUR(order.change_amount_eur_cents || 0)}</strong>
+              Cliente tem <strong>{formatEUR(temMaos)}</strong> em mãos — Levar <strong>{formatEUR(troco)}</strong> de troco
             </div>
           </div>
         )}
@@ -130,10 +134,20 @@ export default function BonDeCommandePage() {
               ))}
             </tbody>
           </table>
+
           <div className="totals">
-            <div className="total-row"><span>Subtotal ({order.total_units} un.)</span><span>{formatEUR(order.total_price_eur_cents)}</span></div>
-            <div className="total-row"><span>Frete</span><span>{formatEUR(freightCents)}</span></div>
-            <div className="total-row grand"><span>TOTAL</span><span>{formatEUR(grandTotal)}</span></div>
+            <div className="total-row">
+              <span>Subtotal ({order.total_units} un.)</span>
+              <span>{formatEUR(order.total_price_eur_cents)}</span>
+            </div>
+            <div className="total-row">
+              <span>Frete</span>
+              <span>{formatEUR(freightCents)}</span>
+            </div>
+            <div className="total-row grand">
+              <span>TOTAL</span>
+              <span>{formatEUR(grandTotal)}</span>
+            </div>
           </div>
         </div>
 
@@ -149,7 +163,9 @@ export default function BonDeCommandePage() {
         </div>
       </div>
 
-      <button className="print-btn" onClick={() => window.print()}>🖨️ Imprimir / Salvar PDF</button>
+      <button className="print-btn" onClick={() => window.print()}>
+        🖨️ Imprimir / Salvar PDF
+      </button>
     </>
   );
 }
