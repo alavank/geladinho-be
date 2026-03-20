@@ -17,6 +17,8 @@ function formatDate(dateStr: string): string {
 
 type ChannelFilter = 'all' | 'b2c' | 'b2b';
 
+const SHOWN_STATUSES: OrderStatus[] = ['novo', 'entregue', 'cancelado'];
+
 export default function AdminPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,7 +85,7 @@ export default function AdminPage() {
       <div className="max-w-7xl mx-auto px-4 py-8">
 
         {/* Channel tabs */}
-        <div className="flex gap-2 mb-6">
+        <div className="flex gap-2 mb-6 flex-wrap">
           {([
             { key: 'all', label: `Todos (${orders.length})` },
             { key: 'b2c', label: `🛒 B2C — Cliente Final (${b2cCount})` },
@@ -102,15 +104,17 @@ export default function AdminPage() {
           ))}
         </div>
 
-        {/* Status counters */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
-          {(Object.keys(ORDER_STATUS_LABELS) as Array<keyof typeof ORDER_STATUS_LABELS>).map((status) => (
+        {/* Status counters - only 3 */}
+        <div className="grid grid-cols-3 gap-3 mb-6">
+          {SHOWN_STATUSES.map((status) => (
             <div key={status} className="card p-4 text-center">
               <p className="text-2xl font-bold text-gray-900">{statusCounts[status] || 0}</p>
               <p className="text-xs text-gray-500 mt-1">{ORDER_STATUS_LABELS[status]}</p>
             </div>
           ))}
         </div>
+
+        <h2 className="text-xl font-bold text-gray-900 mb-4">Pedidos ({filtered.length})</h2>
 
         {loading ? (
           <div className="text-center py-12 text-gray-400">⏳ Carregando...</div>
