@@ -30,6 +30,10 @@ export default function OrderDetailPage() {
   const [updating, setUpdating] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
+  const [showFreightInput, setShowFreightInput] = useState(false);
+  const [freightValue, setFreightValue] = useState('');
+  const [savingFreight, setSavingFreight] = useState(false);
+  const [freightSuccess, setFreightSuccess] = useState('');
 
   useEffect(() => { fetchOrder(); }, [id]);
 
@@ -62,6 +66,49 @@ export default function OrderDetailPage() {
     const res = await fetch(`/api/admin/orders/${id}`, { method: 'DELETE' });
     if (res.ok) router.push('/admin');
     else { setError('Erro ao excluir pedido'); setDeleting(false); }
+  };
+
+  const saveFreight = async () => {
+    if (!order) return;
+    const cents = Math.round(parseFloat(freightValue.replace(',', '.')) * 100);
+    if (isNaN(cents) || cents <= 0) { setError('Insira um valor válido para o frete'); return; }
+    setSavingFreight(true);
+    setError('');
+    const res = await fetch(`/api/admin/orders/${id}/freight`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ freightEurCents: cents }),
+    });
+    if (res.ok) {
+      setOrder((prev) => prev ? { ...prev, freight_eur_cents: cents } : prev);
+      setShowFreightInput(false);
+      setFreightSuccess('Frete salvo com sucesso! Mensagem atualizada enviada.');
+      setTimeout(() => setFreightSuccess(''), 4000);
+    } else {
+      setError('Erro ao salvar frete');
+    }
+    setSavingFreight(false);
+  };
+
+  const removeFreight = async () => {
+    if (!order) return;
+    setSavingFreight(true);
+    setError('');
+    const res = await fetch(`/api/admin/orders/${id}/freight`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ freightEurCents: 0 }),
+    });
+    if (res.ok) {
+      setOrder((prev) => prev ? { ...prev, freight_eur_cents: 0 } : prev);
+      setShowFreightInput(false);
+      setFreightValue('');
+      setFreightSuccess('Frete removido com sucesso!');
+      setTimeout(() => setFreightSuccess(''), 4000);
+    } else {
+      setError('Erro ao remover frete');
+    }
+    setSavingFreight(false);
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center text-gray-400">⏳ Carregando...</div>;
@@ -214,6 +261,72 @@ export default function OrderDetailPage() {
             )}
           </dl>
         </div>
+
+        {/* Freight — B2B only */}
+        {isB2B && (
+          <div className="card p-5">
+            <h2 className="font-bold text-gray-800 mb-4">🚚 Adicionar Frete?</h2>
+
+            {freightSuccess && (
+              <div className="mb-4 bg-green-50 border border-green-200 text-green-700 text-sm px-4 py-2 rounded-xl">
+                {freightSuccess}
+              </div>
+            )}
+
+            {freightCents > 0 && !showFreightInput && (
+              <div className="flex items-center gap-4">
+                <p className="text-sm text-gray-700">
+                  Frete atual: <span className="font-bold text-blue-700">{formatEUR(freightCents)}</span>
+                </p>
+                <button onClick={() => { setShowFreightInput(true); setFreightValue((freightCents / 100).toFixed(2).replace('.', ',')); }}
+                  className="text-sm text-blue-600 hover:text-blue-800 underline">
+                  Alterar
+                </button>
+                <button onClick={removeFreight} disabled={savingFreight}
+                  className="text-sm text-red-500 hover:text-red-700 underline disabled:opacity-50">
+                  Remover frete
+                </button>
+              </div>
+            )}
+
+            {freightCents === 0 && !showFreightInput && (
+              <div className="flex gap-3">
+                <button onClick={() => setShowFreightInput(true)}
+                  className="px-4 py-2 rounded-xl text-sm font-semibold bg-blue-100 text-blue-800 hover:bg-blue-200 border-2 border-blue-200 transition-all">
+                  Sim
+                </button>
+                <button disabled
+                  className="px-4 py-2 rounded-xl text-sm font-semibold bg-gray-100 text-gray-500 border-2 border-transparent cursor-default">
+                  Não
+                </button>
+              </div>
+            )}
+
+            {showFreightInput && (
+              <div className="flex items-end gap-3 mt-2">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Valor do frete (€)</label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="Ex: 15,00"
+                    value={freightValue}
+                    onChange={(e) => setFreightValue(e.target.value)}
+                    className="w-36 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  />
+                </div>
+                <button onClick={saveFreight} disabled={savingFreight}
+                  className="px-4 py-2 rounded-xl text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-all disabled:opacity-50">
+                  {savingFreight ? '⏳ Salvando...' : 'Salvar Frete'}
+                </button>
+                <button onClick={() => { setShowFreightInput(false); setFreightValue(''); }}
+                  className="px-4 py-2 rounded-xl text-sm font-semibold text-gray-500 hover:text-gray-700 transition-all">
+                  Cancelar
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Items */}
         <div className="card p-5">
