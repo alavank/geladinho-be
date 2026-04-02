@@ -50,22 +50,24 @@ const ICE_COLORS = [
 // ─── Stepper Component ────────────────────────────────────────────────────────
 
 function Stepper({ quantity, onChange, min }: { quantity: number; onChange: (v: number) => void; min: number }) {
+  const step = min;
   return (
     <div className="flex items-center gap-1 w-full">
       <button
-        onClick={() => onChange(Math.max(0, quantity - 1))}
+        onClick={() => onChange(Math.max(0, quantity - step))}
         disabled={quantity === 0}
         className="w-8 h-8 shrink-0 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-30 font-bold text-gray-700 flex items-center justify-center text-lg transition-colors"
       >−</button>
       <input
         type="number"
         min={0}
+        step={step}
         value={quantity}
-        onChange={(e) => { const v = parseInt(e.target.value, 10); onChange(isNaN(v) ? 0 : Math.max(0, v)); }}
+        onChange={(e) => { const v = parseInt(e.target.value, 10); if (isNaN(v) || v <= 0) { onChange(0); } else { onChange(Math.round(v / step) * step); } }}
         className="flex-1 min-w-0 text-center font-bold text-gray-900 border border-gray-200 rounded-lg py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
       />
       <button
-        onClick={() => onChange(quantity === 0 ? min : quantity + 1)}
+        onClick={() => onChange(quantity + step)}
         className="w-8 h-8 shrink-0 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold flex items-center justify-center text-lg transition-colors"
       >+</button>
     </div>
