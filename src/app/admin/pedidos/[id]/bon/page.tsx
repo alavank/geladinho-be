@@ -40,35 +40,35 @@ export default function BonDeCommandePage() {
     <>
       <style>{`
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #1a1a1a; background: #fff; }
-        .page { width: 210mm; min-height: 297mm; margin: 0 auto; padding: 18mm 16mm; }
-        .header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 16px; margin-bottom: 20px; border-bottom: 3px solid #C41230; }
-        .logo-img { height: 56px; width: auto; }
+        body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #1a1a1a; background: #fff; }
+        .page { width: 210mm; max-height: 297mm; overflow: hidden; margin: 0 auto; padding: 10mm 13mm; }
+        .header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px; margin-bottom: 10px; border-bottom: 3px solid #C41230; }
+        .logo-img { height: 40px; width: auto; }
         .bon-info { text-align: right; }
-        .bon-info h2 { font-size: 20px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; color: #C41230; }
-        .bon-info p { font-size: 11px; color: #555; margin-top: 4px; }
-        .section { margin-bottom: 18px; }
-        .section-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #9B7A2E; border-bottom: 1px solid #F5E8D0; padding-bottom: 4px; margin-bottom: 10px; }
-        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px; }
+        .bon-info h2 { font-size: 16px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; color: #C41230; }
+        .bon-info p { font-size: 10px; color: #555; margin-top: 2px; }
+        .section { margin-bottom: 8px; }
+        .section-title { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #9B7A2E; border-bottom: 1px solid #F5E8D0; padding-bottom: 3px; margin-bottom: 6px; }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 20px; }
         .info-row { display: flex; flex-direction: column; }
-        .info-label { font-size: 10px; color: #888; margin-bottom: 2px; }
-        .info-value { font-size: 13px; font-weight: 600; }
+        .info-label { font-size: 9px; color: #888; margin-bottom: 1px; }
+        .info-value { font-size: 11px; font-weight: 600; }
         table { width: 100%; border-collapse: collapse; }
-        th { background: #C41230; color: #fff; padding: 8px 10px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+        th { background: #C41230; color: #fff; padding: 4px 8px; text-align: left; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; }
         th.right, td.right { text-align: right; }
         th.center, td.center { text-align: center; }
-        td { padding: 8px 10px; border-bottom: 1px solid #f0e8e0; font-size: 12px; }
+        td { padding: 3px 8px; border-bottom: 1px solid #f0e8e0; font-size: 10px; }
         tr:nth-child(even) td { background: #FDF6EC; }
-        .totals { margin-top: 16px; margin-left: auto; width: 260px; }
-        .total-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 13px; border-bottom: 1px solid #f0e8e0; }
-        .total-row.grand { font-size: 17px; font-weight: 900; border-bottom: none; border-top: 3px solid #C41230; padding-top: 10px; margin-top: 6px; color: #C41230; }
-        .troco-box { background: #FFF7ED; border: 1px solid #FED7AA; border-radius: 6px; padding: 10px 14px; font-size: 12px; color: #9A3412; }
-        .footer { margin-top: 30px; border-top: 1px solid #f0e8e0; padding-top: 12px; text-align: center; font-size: 10px; color: #bbb; }
+        .totals { margin-top: 8px; margin-left: auto; width: 240px; }
+        .total-row { display: flex; justify-content: space-between; padding: 3px 0; font-size: 11px; border-bottom: 1px solid #f0e8e0; }
+        .total-row.grand { font-size: 14px; font-weight: 900; border-bottom: none; border-top: 3px solid #C41230; padding-top: 6px; margin-top: 4px; color: #C41230; }
+        .troco-box { background: #FFF7ED; border: 1px solid #FED7AA; border-radius: 6px; padding: 6px 10px; font-size: 10px; color: #9A3412; }
+        .footer { margin-top: 10px; border-top: 1px solid #f0e8e0; padding-top: 6px; text-align: center; font-size: 9px; color: #bbb; }
         .print-btn { position: fixed; bottom: 20px; right: 20px; background: #C41230; color: #fff; border: none; border-radius: 10px; padding: 12px 22px; font-weight: 700; cursor: pointer; font-size: 14px; box-shadow: 0 4px 16px rgba(196,18,48,0.3); }
         .print-btn:hover { background: #A00D27; }
         @media print {
           @page { size: A4; margin: 0; }
-          .page { padding: 14mm 13mm; }
+          .page { padding: 10mm 13mm; }
           .print-btn { display: none; }
         }
       `}</style>
