@@ -103,7 +103,7 @@ export default function GastosPage() {
           <Link href="/admin/gastos/fornecedores" className="text-sm text-gray-600 hover:text-gray-900 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50 font-medium">
             🏬 Fornecedores
           </Link>
-          <Link href="/admin/gastos/novo" className="btn-primary py-1.5 px-4 text-sm">+ Novo Gasto</Link>
+          <Link href="/admin/gastos/novo" className="btn-primary py-1.5 px-4 text-sm">+ Nova Compra</Link>
         </div>
       </header>
 
@@ -155,8 +155,8 @@ export default function GastosPage() {
         {filtered.length === 0 ? (
           <div className="card p-12 text-center text-gray-400">
             <p className="text-4xl mb-3">💸</p>
-            <p>Nenhum gasto encontrado no período.</p>
-            <Link href="/admin/gastos/novo" className="inline-block mt-4 btn-primary py-2 px-6 text-sm">Registrar primeiro gasto</Link>
+            <p>Nenhuma compra encontrada no período.</p>
+            <Link href="/admin/gastos/novo" className="inline-block mt-4 btn-primary py-2 px-6 text-sm">Registrar primeira compra</Link>
           </div>
         ) : (
           <div className="card overflow-hidden">
@@ -164,7 +164,7 @@ export default function GastosPage() {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    {['Data', 'Categoria', 'Descrição', 'Fornecedor', 'Valor', 'Ações'].map((h) => (
+                    {['Data', 'Categoria', 'Compra', 'Fornecedor', 'Local', 'Total', 'Ações'].map((h) => (
                       <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
@@ -180,8 +180,17 @@ export default function GastosPage() {
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-3 font-medium text-gray-900 max-w-[200px] truncate">{expense.description}</td>
+                      <td className="px-4 py-3 max-w-[260px]">
+                        <p className="truncate font-medium text-gray-900">{expense.description}</p>
+                        <p className="mt-0.5 text-xs text-gray-500">
+                          {(expense.items?.length || 0)} item(ns)
+                          {expense.invoice_number ? ` · Nota ${expense.invoice_number}` : ''}
+                        </p>
+                      </td>
                       <td className="px-4 py-3 text-gray-600 text-xs">{expense.supplier?.name || '—'}</td>
+                      <td className="px-4 py-3 max-w-[220px] text-xs text-gray-600">
+                        <span className="block truncate">{expense.location_address || '—'}</span>
+                      </td>
                       <td className="px-4 py-3 font-bold text-orange-600 whitespace-nowrap">{formatEUR(expense.amount_eur_cents)}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">

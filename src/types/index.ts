@@ -55,16 +55,26 @@ export interface Supplier {
   active: boolean;
 }
 
+export interface ExpenseItem {
+  name: string;
+  quantity: number;
+  unit_price_eur_cents: number;
+  line_total_eur_cents: number;
+}
+
 export interface Expense {
   id: string;
   created_at: string;
   date: string;
   category_id: string;
   supplier_id: string | null;
+  invoice_number: string | null;
+  location_address: string | null;
   description: string;
   amount_eur_cents: number;
   receipt_image_url: string | null;
   ocr_raw_data: OcrResult | null;
+  items: ExpenseItem[];
   notes: string | null;
   // Joined fields
   category?: ExpenseCategory;
@@ -75,7 +85,14 @@ export interface OcrResult {
   total_amount?: number;
   date?: string;
   supplier_name?: string;
-  items?: Array<{ name: string; quantity?: number; price?: number }>;
+  supplier_address?: string | null;
+  invoice_number?: string | null;
+  items?: Array<{
+    name: string;
+    quantity?: number | null;
+    unit_price?: number | null;
+    line_total?: number | null;
+  }>;
   raw_text?: string;
 }
 
