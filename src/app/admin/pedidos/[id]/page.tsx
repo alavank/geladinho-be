@@ -1,16 +1,29 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Order, OrderStatus, ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from '@/types';
+import AddressAutocomplete from '@/components/AddressAutocomplete';
+import { formatFullAddress } from '@/lib/address';
+import { getCustomerDisplayName } from '@/lib/customers';
 import { formatEUR } from '@/lib/flavors';
+import {
+  DEFAULT_ORDER_STATUS_CONFIGS,
+  formatOrderAddress,
+  getStatusBadgeStyle,
+  getStatusConfig,
+} from '@/lib/orders';
+import { Customer, Order, OrderStatus, OrderStatusConfig } from '@/types';
 
 function formatDate(dateStr: string): string {
   return new Intl.DateTimeFormat('pt-BR', {
     timeZone: 'Europe/Brussels',
-    day: '2-digit', month: '2-digit', year: 'numeric',
-    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
   }).format(new Date(dateStr));
 }
 
@@ -18,7 +31,35 @@ function makeWhatsAppLink(phoneE164: string): string {
   return `https://wa.me/${phoneE164.replace(/\D/g, '')}`;
 }
 
-const SHOWN_STATUSES: OrderStatus[] = ['novo', 'entregue', 'cancelado'];
+type EditableOrderForm = {
+  customer_id: string;
+  customer_name: string;
+  establishment_name: string;
+  customer_phone: string;
+  customer_email: string;
+  address_full: string;
+  address_street: string;
+  address_number: string;
+  address_postal_code: string;
+  address_city: string;
+  notes: string;
+};
+
+function createFormFromOrder(order: Order): EditableOrderForm {
+  return {
+    customer_id: order.customer_id || '',
+    customer_name: order.customer_name || '',
+    establishment_name: order.establishment_name || '',
+    customer_phone: order.customer_phone_e164 || '',
+    customer_email: order.customer_email || '',
+    address_full: formatOrderAddress(order),
+    address_street: order.address_street || '',
+    address_number: order.address_number || '',
+    address_postal_code: order.address_postal_code || '',
+    address_city: order.address_city || '',
+    notes: order.notes || '',
+  };
+}
 
 export default function OrderDetailPage() {
   const params = useParams();
@@ -26,249 +67,542 @@ export default function OrderDetailPage() {
   const router = useRouter();
 
   const [order, setOrder] = useState<Order | null>(null);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [statusConfigs, setStatusConfigs] = useState<OrderStatusConfig[]>(DEFAULT_ORDER_STATUS_CONFIGS);
+  const [form, setForm] = useState<EditableOrderForm | null>(null);
+
   const [loading, setLoading] = useState(true);
-  const [updating, setUpdating] = useState(false);
+  const [pageError, setPageError] = useState('');
+  const [customerError, setCustomerError] = useState('');
+  const [customerSuccess, setCustomerSuccess] = useState('');
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [savingCustomer, setSavingCustomer] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [error, setError] = useState('');
   const [showFreightInput, setShowFreightInput] = useState(false);
   const [freightValue, setFreightValue] = useState('');
   const [savingFreight, setSavingFreight] = useState(false);
   const [freightSuccess, setFreightSuccess] = useState('');
 
-  useEffect(() => { fetchOrder(); }, [id]);
+  const fetchPageData = async () => {
+    const [orderResponse, customersResponse, statusesResponse] = await Promise.all([
+      fetch(`/api/admin/orders/${id}`),
+      fetch('/api/admin/customers'),
+      fetch('/api/admin/order-statuses'),
+    ]);
 
-  const fetchOrder = async () => {
-    const res = await fetch(`/api/admin/orders/${id}`);
-    if (res.status === 401) { router.push('/admin/login'); return; }
-    if (!res.ok) { setError('Pedido não encontrado'); setLoading(false); return; }
-    const data = await res.json();
-    setOrder(data);
+    if (
+      orderResponse.status === 401 ||
+      customersResponse.status === 401 ||
+      statusesResponse.status === 401
+    ) {
+      router.push('/admin/login');
+      return;
+    }
+
+    if (!orderResponse.ok) {
+      setPageError('Pedido não encontrado');
+      setLoading(false);
+      return;
+    }
+
+    const nextOrder = await orderResponse.json();
+    setOrder(nextOrder);
+    setForm(createFormFromOrder(nextOrder));
+
+    if (customersResponse.ok) {
+      setCustomers(await customersResponse.json());
+    }
+
+    if (statusesResponse.ok) {
+      const nextConfigs = await statusesResponse.json();
+      if (Array.isArray(nextConfigs) && nextConfigs.length > 0) {
+        setStatusConfigs(nextConfigs);
+      }
+    }
+
     setLoading(false);
   };
 
+  useEffect(() => {
+    void fetchPageData();
+  }, [id]);
+
   const updateStatus = async (newStatus: OrderStatus) => {
     if (!order) return;
-    setUpdating(true);
-    const res = await fetch(`/api/admin/orders/${id}`, {
+    setUpdatingStatus(true);
+    setPageError('');
+
+    const response = await fetch(`/api/admin/orders/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: newStatus }),
     });
-    if (res.ok) setOrder((prev) => prev ? { ...prev, status: newStatus } : prev);
-    else setError('Erro ao atualizar status');
-    setUpdating(false);
+
+    if (response.ok) {
+      const updatedOrder = await response.json();
+      setOrder((prev) => prev ? { ...prev, ...updatedOrder, order_items: prev.order_items } : prev);
+    } else {
+      const data = await response.json().catch(() => ({}));
+      setPageError(data.error || 'Erro ao atualizar status');
+    }
+
+    setUpdatingStatus(false);
+  };
+
+  const handleSaveCustomerData = async () => {
+    if (!order || !form) return;
+
+    setCustomerError('');
+    setCustomerSuccess('');
+
+    if (!form.customer_name.trim()) {
+      setCustomerError(order.channel === 'b2b' ? 'O contato responsável é obrigatório' : 'O nome do cliente é obrigatório');
+      return;
+    }
+
+    if (!form.customer_phone.trim()) {
+      setCustomerError('O telefone é obrigatório');
+      return;
+    }
+
+    if (!form.address_street || !form.address_number || !form.address_postal_code || !form.address_city) {
+      setCustomerError('Selecione um endereço completo na lista para salvar o pedido');
+      return;
+    }
+
+    setSavingCustomer(true);
+
+    const response = await fetch(`/api/admin/orders/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        customer_id: form.customer_id || null,
+        customer_name: form.customer_name,
+        establishment_name: order.channel === 'b2b' ? form.establishment_name : null,
+        customer_phone: form.customer_phone,
+        customer_email: form.customer_email,
+        address_street: form.address_street,
+        address_number: form.address_number,
+        address_postal_code: form.address_postal_code,
+        address_city: form.address_city,
+        address_country: 'Belgium',
+        notes: form.notes,
+      }),
+    });
+
+    if (response.ok) {
+      const updatedOrder = await response.json();
+      setOrder((prev) => prev ? { ...prev, ...updatedOrder, order_items: prev.order_items } : prev);
+      const nextMergedOrder = { ...(order || {}), ...updatedOrder } as Order;
+      setForm(createFormFromOrder(nextMergedOrder));
+      setCustomerSuccess('Dados do pedido atualizados com sucesso.');
+      setTimeout(() => setCustomerSuccess(''), 4000);
+    } else {
+      const data = await response.json().catch(() => ({}));
+      setCustomerError(data.error || 'Erro ao salvar dados do pedido');
+    }
+
+    setSavingCustomer(false);
   };
 
   const handleDelete = async () => {
     if (!order) return;
     if (!confirm(`Excluir o pedido de ${order.customer_name}? Esta ação não pode ser desfeita.`)) return;
     setDeleting(true);
-    const res = await fetch(`/api/admin/orders/${id}`, { method: 'DELETE' });
-    if (res.ok) router.push('/admin');
-    else { setError('Erro ao excluir pedido'); setDeleting(false); }
+
+    const response = await fetch(`/api/admin/orders/${id}`, { method: 'DELETE' });
+    if (response.ok) {
+      router.push('/admin');
+    } else {
+      const data = await response.json().catch(() => ({}));
+      setPageError(data.error || 'Erro ao excluir pedido');
+      setDeleting(false);
+    }
   };
 
   const saveFreight = async () => {
     if (!order) return;
     const cents = Math.round(parseFloat(freightValue.replace(',', '.')) * 100);
-    if (isNaN(cents) || cents <= 0) { setError('Insira um valor válido para o frete'); return; }
+
+    if (isNaN(cents) || cents <= 0) {
+      setPageError('Insira um valor válido para o frete');
+      return;
+    }
+
     setSavingFreight(true);
-    setError('');
-    const res = await fetch(`/api/admin/orders/${id}/freight`, {
+    setPageError('');
+
+    const response = await fetch(`/api/admin/orders/${id}/freight`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ freightEurCents: cents }),
     });
-    if (res.ok) {
+
+    if (response.ok) {
       setOrder((prev) => prev ? { ...prev, freight_eur_cents: cents } : prev);
       setShowFreightInput(false);
-      setFreightSuccess('Frete salvo com sucesso! Mensagem atualizada enviada.');
+      setFreightSuccess('Frete salvo com sucesso. Mensagem atualizada enviada.');
       setTimeout(() => setFreightSuccess(''), 4000);
     } else {
-      setError('Erro ao salvar frete');
+      setPageError('Erro ao salvar frete');
     }
+
     setSavingFreight(false);
   };
 
   const removeFreight = async () => {
     if (!order) return;
     setSavingFreight(true);
-    setError('');
-    const res = await fetch(`/api/admin/orders/${id}/freight`, {
+    setPageError('');
+
+    const response = await fetch(`/api/admin/orders/${id}/freight`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ freightEurCents: 0 }),
     });
-    if (res.ok) {
+
+    if (response.ok) {
       setOrder((prev) => prev ? { ...prev, freight_eur_cents: 0 } : prev);
       setShowFreightInput(false);
       setFreightValue('');
-      setFreightSuccess('Frete removido com sucesso!');
+      setFreightSuccess('Frete removido com sucesso.');
       setTimeout(() => setFreightSuccess(''), 4000);
     } else {
-      setError('Erro ao remover frete');
+      setPageError('Erro ao remover frete');
     }
+
     setSavingFreight(false);
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center text-gray-400">⏳ Carregando...</div>;
-  if (error || !order) return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="text-center">
-        <p className="text-red-600 mb-4">{error || 'Pedido não encontrado'}</p>
-        <Link href="/admin" className="btn-secondary">← Voltar</Link>
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center text-gray-400">Carregando...</div>;
+  }
+
+  if (pageError && !order) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="mb-4 text-red-600">{pageError}</p>
+          <Link href="/admin" className="btn-secondary">← Voltar</Link>
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  if (!order || !form) return null;
 
   const shortId = order.id.substring(0, 8).toUpperCase();
   const freightCents = order.freight_eur_cents || 0;
   const grandTotal = order.total_price_eur_cents + freightCents;
   const isB2B = order.channel === 'b2b';
-
-  // Troco calculation
-  const temMaos = order.change_amount_eur_cents || 0;
-  const trocoALevar = Math.max(0, temMaos - grandTotal);
+  const changeInHand = order.change_amount_eur_cents || 0;
+  const changeToBring = Math.max(0, changeInHand - grandTotal);
+  const currentStatus = getStatusConfig(order.status, statusConfigs);
+  const availableStatuses = statusConfigs
+    .filter((config) => config.active)
+    .sort((a, b) => a.sort_order - b.sort_order);
+  const matchingCustomers = customers.filter((customer) => customer.type === order.channel && (customer.active || customer.id === form.customer_id));
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center gap-4 sticky top-0 z-30 shadow-sm">
+      <header className="sticky top-0 z-30 flex items-center gap-4 border-b border-gray-200 bg-white px-6 py-4 shadow-sm">
         <Link href="/admin" className="text-gray-500 hover:text-gray-700">← Pedidos</Link>
         <span className="text-gray-300">|</span>
         <h1 className="font-bold text-gray-900">Pedido #{shortId}</h1>
         {isB2B && (
-          <span className="inline-flex px-2 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800">🏪 B2B</span>
+          <span className="inline-flex rounded-full bg-blue-100 px-2 py-1 text-xs font-bold text-blue-800">
+            B2B
+          </span>
         )}
-        <span className={`ml-auto inline-flex px-3 py-1 rounded-full text-sm font-semibold ${ORDER_STATUS_COLORS[order.status]}`}>
-          {ORDER_STATUS_LABELS[order.status]}
+        <span
+          className="ml-auto inline-flex rounded-full px-3 py-1 text-sm font-semibold"
+          style={getStatusBadgeStyle(order.status, statusConfigs)}
+        >
+          {currentStatus.label}
         </span>
       </header>
 
-      <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
-
-        {/* Actions */}
+      <div className="mx-auto max-w-5xl space-y-6 px-4 py-8">
         <div className="flex flex-wrap gap-3">
-          <a href={makeWhatsAppLink(order.customer_phone_e164)} target="_blank" rel="noopener noreferrer"
-            className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white font-semibold px-5 py-2.5 rounded-xl transition-all shadow-sm">
-            💬 WhatsApp do cliente
+          <a
+            href={makeWhatsAppLink(order.customer_phone_e164)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 rounded-xl bg-green-500 px-5 py-2.5 font-semibold text-white shadow-sm transition-all hover:bg-green-600"
+          >
+            WhatsApp do cliente
           </a>
           {!isB2B && (
-            <button onClick={() => window.open(`/admin/pedidos/${id}/bon`, '_blank')}
-              className="flex items-center gap-2 bg-gray-800 hover:bg-gray-900 text-white font-semibold px-5 py-2.5 rounded-xl transition-all shadow-sm">
-              🖨️ Bon de Commande (PDF)
+            <button
+              onClick={() => window.open(`/admin/pedidos/${id}/bon`, '_blank')}
+              className="flex items-center gap-2 rounded-xl bg-gray-800 px-5 py-2.5 font-semibold text-white shadow-sm transition-all hover:bg-gray-900"
+            >
+              Bon de Commande (PDF)
             </button>
           )}
           {isB2B && (
-            <button onClick={() => window.open(`/admin/pedidos/${id}/bon-revenda`, '_blank')}
-              className="flex items-center gap-2 text-white font-semibold px-5 py-2.5 rounded-xl transition-all shadow-sm"
-              style={{ background: 'linear-gradient(135deg, #0EA5E9, #0369A1)' }}>
-              🖨️ Bon de Commande B2B (PDF)
+            <button
+              onClick={() => window.open(`/admin/pedidos/${id}/bon-revenda`, '_blank')}
+              className="flex items-center gap-2 rounded-xl px-5 py-2.5 font-semibold text-white shadow-sm transition-all"
+              style={{ background: 'linear-gradient(135deg, #0EA5E9, #0369A1)' }}
+            >
+              Bon de Commande B2B (PDF)
             </button>
           )}
         </div>
 
-        {/* Status */}
+        {pageError && (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {pageError}
+          </div>
+        )}
+
         <div className="card p-5">
-          <h2 className="font-bold text-gray-800 mb-4">Alterar Status</h2>
+          <h2 className="mb-4 font-bold text-gray-800">Alterar Status</h2>
           <div className="flex flex-wrap gap-2">
-            {SHOWN_STATUSES.map((status) => (
-              <button key={status} onClick={() => updateStatus(status)}
-                disabled={updating || order.status === status}
-                className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all border-2 ${
-                  order.status === status
-                    ? ORDER_STATUS_COLORS[status] + ' border-transparent cursor-default'
-                    : 'border-gray-200 text-gray-600 hover:border-gray-400 disabled:opacity-50'
-                }`}>
-                {ORDER_STATUS_LABELS[status]}
-              </button>
-            ))}
+            {availableStatuses.map((status) => {
+              const selected = order.status === status.key;
+              return (
+                <button
+                  key={status.key}
+                  onClick={() => void updateStatus(status.key)}
+                  disabled={updatingStatus || selected}
+                  className={`rounded-xl border-2 px-4 py-2 text-sm font-semibold transition-all ${
+                    selected
+                      ? 'cursor-default border-transparent'
+                      : 'border-gray-200 text-gray-600 hover:border-gray-400 disabled:opacity-50'
+                  }`}
+                  style={selected ? getStatusBadgeStyle(status.key, statusConfigs) : undefined}
+                >
+                  {status.label}
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        {/* Customer */}
         <div className="card p-5">
-          <h2 className="font-bold text-gray-800 mb-4">
-            {isB2B ? '🏪 Dados do Estabelecimento' : '👤 Dados do Cliente'}
-          </h2>
-          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="font-bold text-gray-800">
+              {isB2B ? 'Dados do Estabelecimento' : 'Dados do Cliente'}
+            </h2>
+            <button
+              type="button"
+              onClick={() => setForm(createFormFromOrder(order))}
+              className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50"
+            >
+              Reverter alterações
+            </button>
+          </div>
 
-            {/* B2B fields */}
-            {isB2B && order.establishment_name && (
-              <div>
-                <dt className="text-gray-500 text-xs uppercase tracking-wide">Estabelecimento</dt>
-                <dd className="font-semibold text-gray-900 mt-1">{order.establishment_name}</dd>
+          <div className="space-y-4">
+            <div>
+              <label className="label">Cliente cadastrado</label>
+              <div className="flex flex-wrap items-center gap-3">
+                <select
+                  value={form.customer_id}
+                  onChange={(event) => {
+                    const nextCustomerId = event.target.value;
+                    const selectedCustomer = matchingCustomers.find((customer) => customer.id === nextCustomerId);
+
+                    if (!selectedCustomer) {
+                      setForm((prev) => prev ? { ...prev, customer_id: '' } : prev);
+                      return;
+                    }
+
+                    const customerAddress =
+                      selectedCustomer.address_full ||
+                      formatFullAddress({
+                        street: selectedCustomer.address_street || '',
+                        number: selectedCustomer.address_number || '',
+                        postalCode: selectedCustomer.address_postal_code || '',
+                        city: selectedCustomer.address_city || '',
+                        country: 'Belgium',
+                      });
+
+                    setForm((prev) => prev ? ({
+                      ...prev,
+                      customer_id: selectedCustomer.id,
+                      customer_name: selectedCustomer.name,
+                      establishment_name: selectedCustomer.establishment_name || '',
+                      customer_phone: selectedCustomer.phone_e164,
+                      customer_email: selectedCustomer.email || '',
+                      address_full: customerAddress,
+                      address_street: selectedCustomer.address_street || '',
+                      address_number: selectedCustomer.address_number || '',
+                      address_postal_code: selectedCustomer.address_postal_code || '',
+                      address_city: selectedCustomer.address_city || '',
+                      notes: selectedCustomer.notes || prev.notes,
+                    }) : prev);
+                    setCustomerError('');
+                  }}
+                  className="input-field max-w-xl"
+                >
+                  <option value="">Pedido avulso / preenchimento manual</option>
+                  {matchingCustomers.map((customer) => (
+                    <option key={customer.id} value={customer.id}>
+                      {getCustomerDisplayName(customer)}
+                    </option>
+                  ))}
+                </select>
+
+                {form.customer_id && (
+                  <button
+                    type="button"
+                    onClick={() => setForm((prev) => prev ? { ...prev, customer_id: '' } : prev)}
+                    className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50"
+                  >
+                    Desvincular cadastro
+                  </button>
+                )}
               </div>
-            )}
+            </div>
+
             {isB2B && (
               <div>
-                <dt className="text-gray-500 text-xs uppercase tracking-wide">Contato Responsável</dt>
-                <dd className="font-semibold text-gray-900 mt-1">{order.customer_name}</dd>
+                <label className="label">Estabelecimento</label>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="Ex: Supermercado Bom Preço"
+                  value={form.establishment_name}
+                  onChange={(event) => setForm((prev) => prev ? { ...prev, establishment_name: event.target.value } : prev)}
+                />
               </div>
             )}
 
-            {/* B2C name — só mostra se NÃO for B2B */}
-            {!isB2B && (
+            <div>
+              <label className="label">{isB2B ? 'Contato responsável *' : 'Nome do cliente *'}</label>
+              <input
+                type="text"
+                className="input-field"
+                placeholder={isB2B ? 'Ex: João Silva' : 'Ex: Maria Silva'}
+                value={form.customer_name}
+                onChange={(event) => setForm((prev) => prev ? { ...prev, customer_name: event.target.value } : prev)}
+              />
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
               <div>
-                <dt className="text-gray-500 text-xs uppercase tracking-wide">Nome</dt>
-                <dd className="font-semibold text-gray-900 mt-1">{order.customer_name}</dd>
+                <label className="label">Telefone *</label>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="+32 470 12 34 56"
+                  value={form.customer_phone}
+                  onChange={(event) => setForm((prev) => prev ? { ...prev, customer_phone: event.target.value } : prev)}
+                />
               </div>
-            )}
-
-            <div>
-              <dt className="text-gray-500 text-xs uppercase tracking-wide">Telefone</dt>
-              <dd className="mt-1 flex items-center gap-2 flex-wrap">
-                <span className="font-semibold text-gray-900 font-mono">{order.customer_phone_e164}</span>
-                <a href={makeWhatsAppLink(order.customer_phone_e164)} target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 bg-green-100 text-green-700 hover:bg-green-200 text-xs font-semibold px-2 py-1 rounded-lg">
-                  💬 WhatsApp
-                </a>
-              </dd>
-            </div>
-
-            {order.customer_email && (
               <div>
-                <dt className="text-gray-500 text-xs uppercase tracking-wide">Email</dt>
-                <dd className="font-semibold text-gray-900 mt-1">{order.customer_email}</dd>
+                <label className="label">Email</label>
+                <input
+                  type="email"
+                  className="input-field"
+                  placeholder="contato@cliente.be"
+                  value={form.customer_email}
+                  onChange={(event) => setForm((prev) => prev ? { ...prev, customer_email: event.target.value } : prev)}
+                />
               </div>
-            )}
-
-            <div className="sm:col-span-2">
-              <dt className="text-gray-500 text-xs uppercase tracking-wide">Endereço</dt>
-              <dd className="font-semibold text-gray-900 mt-1">
-                {order.address_street}, {order.address_number} — {order.address_postal_code} {order.address_city}, Bélgica
-              </dd>
             </div>
 
             <div>
-              <dt className="text-gray-500 text-xs uppercase tracking-wide">Troco</dt>
-              <dd className="font-semibold text-gray-900 mt-1">
-                {order.needs_change
-                  ? `Sim — Cliente tem ${formatEUR(temMaos)} em mãos — Levar ${formatEUR(trocoALevar)} de troco`
-                  : 'Não precisa'}
-              </dd>
+              <label className="label">Endereço completo *</label>
+              <AddressAutocomplete
+                className="w-full"
+                placeholder="Ex: Rue de la Vérité 45A, 1070 Anderlecht"
+                value={form.address_full}
+                onChange={(nextValue, meta) => {
+                  setForm((prev) => prev ? ({
+                    ...prev,
+                    address_full: nextValue,
+                    ...(meta?.selected ? {} : {
+                      address_street: '',
+                      address_number: '',
+                      address_postal_code: '',
+                      address_city: '',
+                    }),
+                  }) : prev);
+                }}
+                onAddressSelected={(address) => {
+                  const normalizedFullAddress =
+                    address.fullAddress ||
+                    formatFullAddress({
+                      street: address.street,
+                      number: address.number,
+                      postalCode: address.postalCode,
+                      city: address.city,
+                      country: 'Belgium',
+                    });
+
+                  setForm((prev) => prev ? ({
+                    ...prev,
+                    address_full: normalizedFullAddress,
+                    address_street: address.street,
+                    address_number: address.number,
+                    address_postal_code: address.postalCode,
+                    address_city: address.city,
+                  }) : prev);
+                  setCustomerError('');
+                }}
+              />
+              <p className="mt-1 text-xs text-gray-400">Selecione uma sugestão para atualizar rua, número, código postal e comuna.</p>
             </div>
 
             <div>
-              <dt className="text-gray-500 text-xs uppercase tracking-wide">Data e hora que foi feito o pedido</dt>
-              <dd className="font-semibold text-gray-900 mt-1">{formatDate(order.created_at)}</dd>
+              <label className="label">Observações</label>
+              <textarea
+                className="input-field"
+                rows={3}
+                placeholder="Notas internas sobre este pedido..."
+                value={form.notes}
+                onChange={(event) => setForm((prev) => prev ? { ...prev, notes: event.target.value } : prev)}
+              />
             </div>
 
-            {order.notes && (
-              <div className="sm:col-span-2">
-                <dt className="text-gray-500 text-xs uppercase tracking-wide">Observações</dt>
-                <dd className="text-gray-700 mt-1 italic">{order.notes}</dd>
+            <div className="rounded-xl bg-gray-50 p-4 text-sm text-gray-600">
+              <p><span className="font-semibold text-gray-800">Endereço atual:</span> {formatOrderAddress(order)}</p>
+              <p className="mt-1"><span className="font-semibold text-gray-800">Pedido feito em:</span> {formatDate(order.created_at)}</p>
+            </div>
+
+            {customerError && (
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {customerError}
               </div>
             )}
-          </dl>
+
+            {customerSuccess && (
+              <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+                {customerSuccess}
+              </div>
+            )}
+
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() => void handleSaveCustomerData()}
+                disabled={savingCustomer}
+                className="btn-primary px-6 py-2.5 disabled:opacity-50"
+              >
+                {savingCustomer ? 'Salvando...' : 'Salvar dados do pedido'}
+              </button>
+              <a
+                href={makeWhatsAppLink(form.customer_phone || order.customer_phone_e164)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-secondary px-6 py-2.5"
+              >
+                Testar WhatsApp
+              </a>
+            </div>
+          </div>
         </div>
 
-        {/* Freight — B2B only */}
         {isB2B && (
           <div className="card p-5">
-            <h2 className="font-bold text-gray-800 mb-4">🚚 Frete</h2>
+            <h2 className="mb-4 font-bold text-gray-800">Frete</h2>
 
             {freightSuccess && (
-              <div className="mb-4 bg-green-50 border border-green-200 text-green-700 text-sm px-4 py-2 rounded-xl">
+              <div className="mb-4 rounded-xl border border-green-200 bg-green-50 px-4 py-2 text-sm text-green-700">
                 {freightSuccess}
               </div>
             )}
@@ -278,43 +612,61 @@ export default function OrderDetailPage() {
                 <p className="text-sm text-gray-700">
                   Frete atual: <span className="font-bold text-blue-700">{formatEUR(freightCents)}</span>
                 </p>
-                <button onClick={() => { setShowFreightInput(true); setFreightValue((freightCents / 100).toFixed(2).replace('.', ',')); }}
-                  className="text-sm text-blue-600 hover:text-blue-800 underline">
+                <button
+                  onClick={() => {
+                    setShowFreightInput(true);
+                    setFreightValue((freightCents / 100).toFixed(2).replace('.', ','));
+                  }}
+                  className="text-sm text-blue-600 underline hover:text-blue-800"
+                >
                   Alterar
                 </button>
-                <button onClick={removeFreight} disabled={savingFreight}
-                  className="text-sm text-red-500 hover:text-red-700 underline disabled:opacity-50">
+                <button
+                  onClick={() => void removeFreight()}
+                  disabled={savingFreight}
+                  className="text-sm text-red-500 underline hover:text-red-700 disabled:opacity-50"
+                >
                   Remover frete
                 </button>
               </div>
             )}
 
             {freightCents === 0 && !showFreightInput && (
-              <button onClick={() => setShowFreightInput(true)}
-                className="text-sm text-blue-600 hover:text-blue-800 font-medium transition-colors">
+              <button
+                onClick={() => setShowFreightInput(true)}
+                className="text-sm font-medium text-blue-600 transition-colors hover:text-blue-800"
+              >
                 + Adicionar frete
               </button>
             )}
 
             {showFreightInput && (
-              <div className="flex items-end gap-3 mt-2">
+              <div className="mt-2 flex items-end gap-3">
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">Valor do frete (€)</label>
+                  <label className="mb-1 block text-xs text-gray-500">Valor do frete (EUR)</label>
                   <input
                     type="text"
                     inputMode="decimal"
                     placeholder="Ex: 15,00"
                     value={freightValue}
-                    onChange={(e) => setFreightValue(e.target.value)}
-                    className="w-36 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    onChange={(event) => setFreightValue(event.target.value)}
+                    className="w-36 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                   />
                 </div>
-                <button onClick={saveFreight} disabled={savingFreight}
-                  className="px-4 py-2 rounded-xl text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-all disabled:opacity-50">
-                  {savingFreight ? '⏳ Salvando...' : 'Salvar Frete'}
+                <button
+                  onClick={() => void saveFreight()}
+                  disabled={savingFreight}
+                  className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {savingFreight ? 'Salvando...' : 'Salvar Frete'}
                 </button>
-                <button onClick={() => { setShowFreightInput(false); setFreightValue(''); }}
-                  className="px-4 py-2 rounded-xl text-sm font-semibold text-gray-500 hover:text-gray-700 transition-all">
+                <button
+                  onClick={() => {
+                    setShowFreightInput(false);
+                    setFreightValue('');
+                  }}
+                  className="rounded-xl px-4 py-2 text-sm font-semibold text-gray-500 transition-all hover:text-gray-700"
+                >
                   Cancelar
                 </button>
               </div>
@@ -322,15 +674,14 @@ export default function OrderDetailPage() {
           </div>
         )}
 
-        {/* Items */}
         <div className="card p-5">
-          <h2 className="font-bold text-gray-800 mb-4">🍭 Itens do Pedido</h2>
-          <table className="w-full text-sm mb-4">
+          <h2 className="mb-4 font-bold text-gray-800">Itens do Pedido</h2>
+          <table className="mb-4 w-full text-sm">
             <thead>
               <tr className="border-b border-gray-200">
-                <th className="text-left pb-2 text-gray-500 font-medium">Sabor</th>
-                <th className="text-center pb-2 text-gray-500 font-medium">Qtd</th>
-                <th className="text-right pb-2 text-gray-500 font-medium">Subtotal</th>
+                <th className="pb-2 text-left font-medium text-gray-500">Sabor</th>
+                <th className="pb-2 text-center font-medium text-gray-500">Qtd</th>
+                <th className="pb-2 text-right font-medium text-gray-500">Subtotal</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -343,7 +694,8 @@ export default function OrderDetailPage() {
               ))}
             </tbody>
           </table>
-          <div className="border-t-2 border-gray-200 pt-4 space-y-2">
+
+          <div className="space-y-2 border-t-2 border-gray-200 pt-4">
             <div className="flex justify-between text-sm text-gray-600">
               <span>Subtotal ({order.total_units} unidades)</span>
               <span className="font-bold">{formatEUR(order.total_price_eur_cents)}</span>
@@ -354,24 +706,36 @@ export default function OrderDetailPage() {
                 <span className="font-bold">{formatEUR(freightCents)}</span>
               </div>
             )}
-            <div className="flex justify-between text-xl font-bold border-t border-gray-200 pt-2">
+            <div className="flex justify-between border-t border-gray-200 pt-2 text-xl font-bold">
               <span>TOTAL</span>
               <span className="text-brand-600">{formatEUR(grandTotal)}</span>
             </div>
           </div>
         </div>
 
-        <div className="card p-4 bg-gray-50">
+        {order.needs_change && (
+          <div className="card p-5">
+            <h2 className="mb-3 font-bold text-gray-800">Troco</h2>
+            <p className="text-sm text-gray-700">
+              Cliente tem <span className="font-semibold">{formatEUR(changeInHand)}</span> em mãos e você deve levar{' '}
+              <span className="font-semibold text-brand-700">{formatEUR(changeToBring)}</span> de troco.
+            </p>
+          </div>
+        )}
+
+        <div className="card bg-gray-50 p-4">
           <p className="text-xs text-gray-400">ID: <span className="font-mono">{order.id}</span></p>
         </div>
 
-        {/* Delete */}
-        <div className="border-t border-gray-200 pt-6 pb-10">
-          <button onClick={handleDelete} disabled={deleting}
-            className="w-full flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 font-semibold py-3 px-6 rounded-xl border border-red-200 transition-all disabled:opacity-50">
-            {deleting ? '⏳ Excluindo...' : '🗑️ Excluir este pedido permanentemente'}
+        <div className="border-t border-gray-200 pb-10 pt-6">
+          <button
+            onClick={() => void handleDelete()}
+            disabled={deleting}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-6 py-3 font-semibold text-red-600 transition-all hover:bg-red-100 disabled:opacity-50"
+          >
+            {deleting ? 'Excluindo...' : 'Excluir este pedido permanentemente'}
           </button>
-          <p className="text-xs text-gray-400 text-center mt-2">Esta ação não pode ser desfeita.</p>
+          <p className="mt-2 text-center text-xs text-gray-400">Esta ação não pode ser desfeita.</p>
         </div>
       </div>
     </div>

@@ -1,5 +1,6 @@
 export type OrderStatus = 'novo' | 'em_preparo' | 'em_rota' | 'entregue' | 'cancelado';
 export type OrderChannel = 'b2c' | 'b2b';
+export type CustomerType = 'b2c' | 'b2b';
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   novo: 'Novo',
@@ -55,6 +56,31 @@ export interface Supplier {
   active: boolean;
 }
 
+export interface Customer {
+  id: string;
+  created_at: string;
+  type: CustomerType;
+  name: string;
+  establishment_name: string | null;
+  phone_e164: string;
+  email: string | null;
+  address_full: string | null;
+  address_street: string | null;
+  address_number: string | null;
+  address_postal_code: string | null;
+  address_city: string | null;
+  notes: string | null;
+  active: boolean;
+}
+
+export interface OrderStatusConfig {
+  key: OrderStatus;
+  label: string;
+  color: string;
+  sort_order: number;
+  active: boolean;
+}
+
 export interface ExpenseItem {
   name: string;
   quantity: number;
@@ -104,6 +130,7 @@ export interface Order {
   id: string;
   created_at: string;
   channel: OrderChannel;
+  customer_id?: string | null;
   customer_name: string;
   customer_phone_e164: string;
   customer_email?: string | null;

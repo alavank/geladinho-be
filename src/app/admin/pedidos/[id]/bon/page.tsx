@@ -4,12 +4,16 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Order } from '@/types';
 import { formatEUR } from '@/lib/flavors';
+import { formatOrderAddress } from '@/lib/orders';
 
 function formatDate(dateStr: string): string {
   return new Intl.DateTimeFormat('fr-BE', {
     timeZone: 'Europe/Brussels',
-    day: '2-digit', month: '2-digit', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   }).format(new Date(dateStr));
 }
 
@@ -21,20 +25,23 @@ export default function BonDeCommandePage() {
 
   useEffect(() => {
     fetch(`/api/admin/orders/${id}`)
-      .then((r) => r.json())
-      .then((data) => { setOrder(data); setLoading(false); });
+      .then((response) => response.json())
+      .then((data) => {
+        setOrder(data);
+        setLoading(false);
+      });
   }, [id]);
 
-  if (loading || !order) return (
-    <div style={{ padding: 40, fontFamily: 'sans-serif' }}>Carregando...</div>
-  );
+  if (loading || !order) {
+    return <div style={{ padding: 40, fontFamily: 'sans-serif' }}>Carregando...</div>;
+  }
 
   const freightCents = order.freight_eur_cents || 0;
   const grandTotal = order.total_price_eur_cents + freightCents;
   const shortId = order.id.substring(0, 8).toUpperCase();
   const items = order.order_items || [];
-  const temMaos = order.change_amount_eur_cents || 0;
-  const troco = Math.max(0, temMaos - grandTotal);
+  const changeInHand = order.change_amount_eur_cents || 0;
+  const changeToBring = Math.max(0, changeInHand - grandTotal);
 
   return (
     <>
@@ -96,9 +103,7 @@ export default function BonDeCommandePage() {
             </div>
             <div className="info-row" style={{ gridColumn: '1 / -1' }}>
               <span className="info-label">Endereço de entrega</span>
-              <span className="info-value">
-                {order.address_street}, {order.address_number} — {order.address_postal_code} {order.address_city}, Bélgica
-              </span>
+              <span className="info-value">{formatOrderAddress(order)}</span>
             </div>
           </div>
         </div>
@@ -107,7 +112,8 @@ export default function BonDeCommandePage() {
           <div className="section">
             <div className="section-title">Troco</div>
             <div className="troco-box">
-              Cliente tem <strong>{formatEUR(temMaos)}</strong> em mãos — Levar <strong>{formatEUR(troco)}</strong> de troco
+              Cliente tem <strong>{formatEUR(changeInHand)}</strong> em mãos e deve receber{' '}
+              <strong>{formatEUR(changeToBring)}</strong> de troco
             </div>
           </div>
         )}
@@ -159,12 +165,12 @@ export default function BonDeCommandePage() {
         )}
 
         <div className="footer">
-          Madame Simone — Produits Alimentaires · Pedido #{shortId} · {formatDate(order.created_at)}
+          Madame Simone · Pedido #{shortId} · {formatDate(order.created_at)}
         </div>
       </div>
 
       <button className="print-btn" onClick={() => window.print()}>
-        🖨️ Imprimir / Salvar PDF
+        Imprimir / Salvar PDF
       </button>
     </>
   );

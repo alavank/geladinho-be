@@ -1,0 +1,332 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import AddressAutocomplete from '@/components/AddressAutocomplete';
+import { Customer, CustomerType } from '@/types';
+import { getCustomerDisplayName } from '@/lib/customers';
+
+const EMPTY_FORM = {
+  type: 'b2c' as CustomerType,
+  name: '',
+  establishment_name: '',
+  phone: '',
+  email: '',
+  address_full: '',
+  address_street: '',
+  address_number: '',
+  address_postal_code: '',
+  address_city: '',
+  notes: '',
+};
+
+export default function ClientesPage() {
+  const router = useRouter();
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [error, setError] = useState('');
+
+  const fetchCustomers = async () => {
+    const response = await fetch('/api/admin/customers');
+    if (response.status === 401) {
+      router.push('/admin/login');
+      return;
+    }
+    setCustomers(await response.json());
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    void fetchCustomers();
+  }, []);
+
+  const resetForm = () => {
+    setForm(EMPTY_FORM);
+    setShowForm(false);
+    setEditingId(null);
+    setError('');
+  };
+
+  const handleSave = async () => {
+    if (!form.name.trim()) {
+      setError('Nome é obrigatório');
+      return;
+    }
+    if (!form.phone.trim()) {
+      setError('Telefone é obrigatório');
+      return;
+    }
+
+    const url = editingId ? `/api/admin/customers/${editingId}` : '/api/admin/customers';
+    const method = editingId ? 'PATCH' : 'POST';
+
+    const response = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(form),
+    });
+
+    if (response.ok) {
+      resetForm();
+      void fetchCustomers();
+      return;
+    }
+
+    const data = await response.json();
+    setError(data.error || 'Erro ao salvar');
+  };
+
+  const startEdit = (customer: Customer) => {
+    setEditingId(customer.id);
+    setForm({
+      type: customer.type,
+      name: customer.name,
+      establishment_name: customer.establishment_name || '',
+      phone: customer.phone_e164,
+      email: customer.email || '',
+      address_full: customer.address_full || '',
+      address_street: customer.address_street || '',
+      address_number: customer.address_number || '',
+      address_postal_code: customer.address_postal_code || '',
+      address_city: customer.address_city || '',
+      notes: customer.notes || '',
+    });
+    setShowForm(true);
+  };
+
+  const handleToggle = async (customer: Customer) => {
+    await fetch(`/api/admin/customers/${customer.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ active: !customer.active }),
+    });
+    void fetchCustomers();
+  };
+
+  const handleDelete = async (customer: Customer) => {
+    if (!confirm(`Excluir o cliente "${getCustomerDisplayName(customer)}"?`)) return;
+
+    const response = await fetch(`/api/admin/customers/${customer.id}`, {
+      method: 'DELETE',
+    });
+
+    if (response.ok) {
+      void fetchCustomers();
+      return;
+    }
+
+    const data = await response.json();
+    alert(data.error || 'Erro ao excluir');
+  };
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center text-gray-400">⏳ Carregando...</div>;
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-gray-200 bg-white px-6 py-3 shadow-sm">
+        <div className="flex items-center gap-4">
+          <Link href="/admin" className="font-medium text-gray-500 hover:text-gray-700">← Admin</Link>
+          <span className="text-gray-300">|</span>
+          <h1 className="font-bold text-gray-900">👥 Clientes</h1>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            resetForm();
+            setShowForm(true);
+          }}
+          className="btn-primary py-2 px-4 text-sm"
+        >
+          + Novo Cliente
+        </button>
+      </header>
+
+      <div className="mx-auto max-w-3xl space-y-6 px-4 py-8">
+        {showForm && (
+          <div className="card p-6">
+            <h2 className="mb-4 text-lg font-bold text-gray-900">
+              {editingId ? '✏️ Editar Cliente' : '➕ Novo Cliente'}
+            </h2>
+
+            <div className="space-y-4">
+              <div>
+                <label className="label">Tipo de cliente</label>
+                <div className="flex gap-3">
+                  {[
+                    { key: 'b2c' as CustomerType, label: '🛒 Cliente final' },
+                    { key: 'b2b' as CustomerType, label: '🏪 Revenda' },
+                  ].map((option) => (
+                    <button
+                      key={option.key}
+                      type="button"
+                      onClick={() => setForm((prev) => ({
+                        ...prev,
+                        type: option.key,
+                        establishment_name: option.key === 'b2c' ? '' : prev.establishment_name,
+                      }))}
+                      className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all ${
+                        form.type === option.key
+                          ? 'border-brand-500 bg-brand-50 text-brand-700'
+                          : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {form.type === 'b2b' && (
+                <div>
+                  <label className="label">Estabelecimento</label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    placeholder="Ex: Supermercado Bom Preço"
+                    value={form.establishment_name}
+                    onChange={(event) => setForm({ ...form, establishment_name: event.target.value })}
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="label">{form.type === 'b2b' ? 'Contato responsável *' : 'Nome *'}</label>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder={form.type === 'b2b' ? 'Ex: João Silva' : 'Ex: Maria Silva'}
+                  value={form.name}
+                  onChange={(event) => setForm({ ...form, name: event.target.value })}
+                />
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="label">Telefone *</label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    placeholder="+32 470 12 34 56"
+                    value={form.phone}
+                    onChange={(event) => setForm({ ...form, phone: event.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="label">Email</label>
+                  <input
+                    type="email"
+                    className="input-field"
+                    placeholder="contato@cliente.be"
+                    value={form.email}
+                    onChange={(event) => setForm({ ...form, email: event.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="label">Endereço completo</label>
+                <AddressAutocomplete
+                  className="w-full"
+                  placeholder="Ex: Rue de la Vérité 45A, 1070 Anderlecht"
+                  value={form.address_full}
+                  onChange={(nextValue, meta) => {
+                    setForm((prev) => ({
+                      ...prev,
+                      address_full: nextValue,
+                      ...(meta?.selected ? {} : {
+                        address_street: '',
+                        address_number: '',
+                        address_postal_code: '',
+                        address_city: '',
+                      }),
+                    }));
+                  }}
+                  onAddressSelected={(address) => {
+                    setForm((prev) => ({
+                      ...prev,
+                      address_full: address.fullAddress,
+                      address_street: address.street,
+                      address_number: address.number,
+                      address_postal_code: address.postalCode,
+                      address_city: address.city,
+                    }));
+                  }}
+                />
+              </div>
+
+              <div>
+                <label className="label">Observações</label>
+                <textarea
+                  className="input-field"
+                  rows={2}
+                  placeholder="Notas sobre este cliente..."
+                  value={form.notes}
+                  onChange={(event) => setForm({ ...form, notes: event.target.value })}
+                />
+              </div>
+
+              {error && <p className="text-sm text-red-500">⚠️ {error}</p>}
+
+              <div className="flex gap-3">
+                <button type="button" onClick={handleSave} className="btn-primary py-2.5 px-6">
+                  {editingId ? 'Salvar' : 'Cadastrar'}
+                </button>
+                <button type="button" onClick={resetForm} className="btn-secondary py-2.5 px-6">
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="card p-6">
+          <h2 className="mb-4 text-lg font-bold text-gray-900">Clientes Cadastrados ({customers.length})</h2>
+
+          {customers.length === 0 ? (
+            <div className="py-8 text-center text-gray-400">
+              <p className="mb-3 text-4xl">👥</p>
+              <p>Nenhum cliente cadastrado.</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {customers.map((customer) => (
+                <div
+                  key={customer.id}
+                  className={`rounded-xl border p-4 transition-all ${
+                    customer.active ? 'border-gray-200 bg-white' : 'border-dashed border-gray-200 bg-gray-50'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      checked={customer.active}
+                      onChange={() => void handleToggle(customer)}
+                      className="mt-1 h-4 w-4 cursor-pointer accent-brand-600"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className={`text-sm font-semibold ${customer.active ? 'text-gray-900' : 'text-gray-400 line-through'}`}>
+                        {customer.type === 'b2b' ? '🏪 ' : '🛒 '}
+                        {getCustomerDisplayName(customer)}
+                      </p>
+                      <p className="text-xs text-gray-500">{customer.phone_e164}</p>
+                      {customer.address_full && <p className="truncate text-xs text-gray-500">{customer.address_full}</p>}
+                    </div>
+                    <button type="button" onClick={() => startEdit(customer)} className="rounded-lg bg-blue-50 px-2 py-1.5 text-xs font-semibold text-blue-600 hover:bg-blue-100">✏️</button>
+                    <button type="button" onClick={() => void handleDelete(customer)} className="rounded-lg bg-red-50 px-2 py-1.5 text-xs font-semibold text-red-500 hover:bg-red-100">🗑️</button>
+                  </div>
+                  {customer.notes && <p className="ml-7 mt-2 text-xs text-gray-400">{customer.notes}</p>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
