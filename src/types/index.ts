@@ -32,6 +32,57 @@ export interface OrderItem {
   line_total_eur_cents: number;
 }
 
+// ============================================================
+// Expense Module Types
+// ============================================================
+
+export interface ExpenseCategory {
+  id: string;
+  created_at: string;
+  name: string;
+  color: string;
+  icon: string;
+  active: boolean;
+}
+
+export interface Supplier {
+  id: string;
+  created_at: string;
+  name: string;
+  address: string | null;
+  phone: string | null;
+  notes: string | null;
+  active: boolean;
+}
+
+export interface Expense {
+  id: string;
+  created_at: string;
+  date: string;
+  category_id: string;
+  supplier_id: string | null;
+  description: string;
+  amount_eur_cents: number;
+  receipt_image_url: string | null;
+  ocr_raw_data: OcrResult | null;
+  notes: string | null;
+  // Joined fields
+  category?: ExpenseCategory;
+  supplier?: Supplier;
+}
+
+export interface OcrResult {
+  total_amount?: number;
+  date?: string;
+  supplier_name?: string;
+  items?: Array<{ name: string; quantity?: number; price?: number }>;
+  raw_text?: string;
+}
+
+// ============================================================
+// Order Types
+// ============================================================
+
 export interface Order {
   id: string;
   created_at: string;

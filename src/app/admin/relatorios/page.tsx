@@ -8,7 +8,7 @@ import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend
 } from 'recharts';
-import { Order } from '@/types';
+import { Order, Expense } from '@/types';
 import { formatEUR } from '@/lib/flavors';
 
 interface OrderWithItems extends Omit<Order, 'order_items'> {
@@ -79,23 +79,28 @@ function CustomTooltip({ active, payload, label, isCurrency = false }: { active?
 export default function RelatoriosPage() {
   const router = useRouter();
   const [orders, setOrders] = useState<OrderWithItems[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<Period>('30d');
   const [channelView, setChannelView] = useState<ChannelView>('all');
 
   useEffect(() => {
-    fetch('/api/admin/orders')
-      .then((r) => { if (r.status === 401) { router.push('/admin/login'); throw new Error('unauth'); } return r.json(); })
-      .then(async (orderList: Order[]) => {
-        const withItems = await Promise.all(
-          orderList.map(async (o) => {
-            try { const r = await fetch(`/api/admin/orders/${o.id}`); return await r.json(); } catch { return o; }
-          })
-        );
-        setOrders(withItems);
-        setLoading(false);
-      })
-      .catch((e) => { if (e.message !== 'unauth') setLoading(false); });
+    Promise.all([
+      fetch('/api/admin/orders')
+        .then((r) => { if (r.status === 401) { router.push('/admin/login'); throw new Error('unauth'); } return r.json(); })
+        .then(async (orderList: Order[]) => {
+          return Promise.all(
+            orderList.map(async (o) => {
+              try { const r = await fetch(`/api/admin/orders/${o.id}`); return await r.json(); } catch { return o; }
+            })
+          );
+        }),
+      fetch('/api/admin/expenses').then((r) => r.ok ? r.json() : []),
+    ]).then(([withItems, expenseList]) => {
+      setOrders(withItems);
+      setExpenses(expenseList);
+      setLoading(false);
+    }).catch((e) => { if (e.message !== 'unauth') setLoading(false); });
   }, []);
 
   const periodFiltered = useMemo(() => filterByPeriod(orders, period), [orders, period]);
@@ -115,6 +120,28 @@ export default function RelatoriosPage() {
   const totalOrders = filtered.length;
   const totalUnits = units(filtered);
   const totalAvgTicket = avgTicket(filtered);
+
+  // Expenses filtered by period
+  const filteredExpenses = useMemo(() => {
+    if (period === 'all') return expenses;
+    const days = period === '7d' ? 7 : period === '30d' ? 30 : period === '90d' ? 90 : 365;
+    const cutoff = new Date(Date.now() - days * 86400000).toISOString().split('T')[0];
+    return expenses.filter((e) => e.date >= cutoff);
+  }, [expenses, period]);
+
+  const totalExpenses = filteredExpenses.reduce((s, e) => s + e.amount_eur_cents, 0);
+  const totalProfit = totalRevenue - totalExpenses;
+
+  // Expenses by category
+  const expensesByCategory = useMemo(() => {
+    const map: Record<string, { name: string; icon: string; color: string; total: number }> = {};
+    filteredExpenses.forEach((e) => {
+      if (!e.category) return;
+      if (!map[e.category_id]) map[e.category_id] = { name: e.category.name, icon: e.category.icon, color: e.category.color, total: 0 };
+      map[e.category_id].total += e.amount_eur_cents;
+    });
+    return Object.values(map).sort((a, b) => b.total - a.total);
+  }, [filteredExpenses]);
 
   // Month over month
   const currentMonth = getMonthKey(new Date().toISOString());
@@ -238,6 +265,45 @@ export default function RelatoriosPage() {
           </div>
           <StatCard label="Total Faturamento" value={`€ ${toEUR(totalRevenue)}`} sub={`${totalOrders} pedidos`} color={B2C_COLOR} />
           <StatCard label="Ticket Médio" value={`€ ${toEUR(totalAvgTicket)}`} sub={`${totalUnits} un. total`} color={GOLD_COLOR} />
+        </div>
+
+        {/* Profit / Expense summary */}
+        <div className="card p-6 border-l-4" style={{ borderLeftColor: totalProfit >= 0 ? '#059669' : '#DC2626' }}>
+          <h2 className="font-bold text-gray-900 mb-4">💰 Lucro — Receita vs Despesas</h2>
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Receita Total</p>
+              <p className="text-xl font-black text-green-600">+ € {toEUR(totalRevenue)}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Despesas Total</p>
+              <p className="text-xl font-black text-red-600">- € {toEUR(totalExpenses)}</p>
+              <p className="text-xs text-gray-400 mt-1">{filteredExpenses.length} registros</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Lucro Líquido</p>
+              <p className={`text-2xl font-black ${totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {totalProfit >= 0 ? '+' : '-'} € {toEUR(Math.abs(totalProfit))}
+              </p>
+              {totalRevenue > 0 && (
+                <p className="text-xs text-gray-400 mt-1">Margem: {((totalProfit / totalRevenue) * 100).toFixed(1)}%</p>
+              )}
+            </div>
+          </div>
+          {expensesByCategory.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Despesas por Categoria</p>
+              <div className="flex flex-wrap gap-3">
+                {expensesByCategory.map((cat) => (
+                  <div key={cat.name} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-100">
+                    <span>{cat.icon}</span>
+                    <span className="text-sm font-semibold text-gray-700">{cat.name}</span>
+                    <span className="text-sm font-bold" style={{ color: cat.color }}>€ {toEUR(cat.total)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Month comparison */}

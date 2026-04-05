@@ -71,6 +71,9 @@ export default function AdminPage() {
       <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between sticky top-0 z-30 shadow-sm">
         <Image src="/logo.png" alt="Madame Simone" width={140} height={50} className="h-10 w-auto object-contain" />
         <div className="flex items-center gap-2">
+          <Link href="/admin/gastos" className="text-sm text-orange-700 hover:text-orange-900 border border-orange-200 rounded-lg px-3 py-1.5 hover:bg-orange-50 font-medium">
+            💸 Gastos
+          </Link>
           <Link href="/admin/relatorios" className="text-sm text-purple-700 hover:text-purple-900 border border-purple-200 rounded-lg px-3 py-1.5 hover:bg-purple-50 font-medium">
             📊 Relatórios
           </Link>
