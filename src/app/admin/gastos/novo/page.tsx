@@ -66,9 +66,11 @@ export default function NovoGastoPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        setScanError(data.error === 'GEMINI_API_KEY não configurada'
-          ? 'Chave do Gemini não configurada. Adicione GEMINI_API_KEY no .env.local e reinicie o servidor.'
-          : data.error || 'Erro ao processar imagem');
+        setScanError(
+          typeof data.error === 'string' && data.error.includes('GEMINI_API_KEY')
+            ? 'Chave do Gemini não configurada no servidor. Adicione GEMINI_API_KEY nas Variables do Railway e faça um redeploy.'
+            : data.error || 'Erro ao processar imagem'
+        );
         setScanning(false);
         return;
       }

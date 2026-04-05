@@ -4,6 +4,7 @@ import { useState, useCallback, useMemo, useEffect } from 'react';
 import Image from 'next/image';
 import { SystemSettings, FlavorConfig } from '@/lib/settings';
 import { CartItem } from '@/types';
+import { hasStructuredAddress } from '@/lib/address';
 import { formatEUR } from '@/lib/flavors';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
 
@@ -16,6 +17,7 @@ interface B2BFormData {
   customerName: string;
   customerPhone: string;
   customerEmail: string;
+  addressFull: string;
   addressStreet: string;
   addressNumber: string;
   addressPostalCode: string;
@@ -29,6 +31,7 @@ type Step = 'catalog' | 'form' | 'confirm' | 'success';
 
 const EMPTY_FORM: B2BFormData = {
   establishmentName: '', customerName: '', customerPhone: '', customerEmail: '',
+  addressFull: '',
   addressStreet: '', addressNumber: '', addressPostalCode: '', addressCommune: '',
   needsChange: false, changeAmount: '', notes: '',
 };
@@ -146,10 +149,16 @@ export default function RevendaPage() {
     if (!formData.establishmentName.trim()) e.establishmentName = 'Nome do estabelecimento obrigatório';
     if (!formData.customerName.trim()) e.customerName = 'Nome do contato obrigatório';
     if (!formData.customerPhone.trim()) e.customerPhone = 'Telefone obrigatório';
-    if (!formData.addressStreet.trim()) e.addressStreet = 'Rua obrigatória';
-    if (!formData.addressNumber.trim()) e.addressNumber = 'Número obrigatório';
-    if (!/^\d{4}$/.test(formData.addressPostalCode)) e.addressPostalCode = 'Código postal deve ter 4 dígitos';
-    if (!formData.addressCommune.trim()) e.addressCommune = 'Comuna obrigatória';
+    if (!formData.addressFull.trim()) {
+      e.addressFull = 'Endereço obrigatório';
+    } else if (!hasStructuredAddress({
+      street: formData.addressStreet,
+      number: formData.addressNumber,
+      postalCode: formData.addressPostalCode,
+      city: formData.addressCommune,
+    })) {
+      e.addressFull = 'Selecione um endereço sugerido da lista';
+    }
     if (formData.needsChange && !formData.changeAmount.trim()) e.changeAmount = 'Informe o valor em mãos';
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -360,46 +369,40 @@ export default function RevendaPage() {
                   <h3 className="font-bold text-gray-800 mb-4 text-lg">📍 Endereço de Entrega</h3>
                   <div className="space-y-4">
                     <div>
-                      <label className="label">Rue, Avenue, Chaussée... *</label>
+                      <label className="label">Endereço completo *</label>
                       <AddressAutocomplete
                         className="w-full"
-                        invalid={!!errors.addressStreet}
-                        placeholder="Ex: Rue de la Loi"
-                        value={formData.addressStreet}
-                        onChange={(v) => setField('addressStreet', v)}
+                        invalid={!!errors.addressFull}
+                        placeholder="Ex: Rue de la Vérité 45A, 1070 Anderlecht"
+                        value={formData.addressFull}
+                        onChange={(nextValue, meta) => {
+                          setFormData((prev) => ({
+                            ...prev,
+                            addressFull: nextValue,
+                            ...(meta?.selected ? {} : {
+                              addressStreet: '',
+                              addressNumber: '',
+                              addressPostalCode: '',
+                              addressCommune: '',
+                            }),
+                          }));
+                          if (errors.addressFull) {
+                            setErrors((prev) => ({ ...prev, addressFull: '' }));
+                          }
+                        }}
                         onAddressSelected={(addr) => {
                           setFormData((prev) => ({
                             ...prev,
+                            addressFull: addr.fullAddress,
                             addressStreet: addr.street,
-                            addressNumber: addr.number || prev.addressNumber,
-                            addressPostalCode: addr.postalCode || prev.addressPostalCode,
-                            addressCommune: addr.city || prev.addressCommune,
+                            addressNumber: addr.number,
+                            addressPostalCode: addr.postalCode,
+                            addressCommune: addr.city,
                           }));
-                          setErrors({});
+                          setErrors((prev) => ({ ...prev, addressFull: '' }));
                         }}
                       />
-                      {errors.addressStreet && <p className="text-red-500 text-xs mt-1">{errors.addressStreet}</p>}
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="label">Número *</label>
-                        <input className={`input-field ${errClass('addressNumber')}`} placeholder="16"
-                          value={formData.addressNumber} onChange={(e) => setField('addressNumber', e.target.value)} />
-                        {errors.addressNumber && <p className="text-red-500 text-xs mt-1">{errors.addressNumber}</p>}
-                      </div>
-                      <div>
-                        <label className="label">Código Postal *</label>
-                        <input className={`input-field ${errClass('addressPostalCode')}`} placeholder="1000"
-                          value={formData.addressPostalCode} onChange={(e) => setField('addressPostalCode', e.target.value.replace(/\D/g, ''))}
-                          maxLength={4} inputMode="numeric" />
-                        {errors.addressPostalCode && <p className="text-red-500 text-xs mt-1">{errors.addressPostalCode}</p>}
-                      </div>
-                    </div>
-                    <div>
-                      <label className="label">Comuna *</label>
-                      <input className={`input-field ${errClass('addressCommune')}`} placeholder="Ex: Bruxelles, Liège..."
-                        value={formData.addressCommune} onChange={(e) => setField('addressCommune', e.target.value)} />
-                      {errors.addressCommune && <p className="text-red-500 text-xs mt-1">{errors.addressCommune}</p>}
+                      {errors.addressFull && <p className="text-red-500 text-xs mt-1">{errors.addressFull}</p>}
                     </div>
                   </div>
                 </div>
@@ -470,7 +473,7 @@ export default function RevendaPage() {
                   <div className="flex gap-2"><dt className="text-gray-500 w-28 shrink-0">Contato:</dt><dd className="font-semibold text-gray-900">{formData.customerName}</dd></div>
                   <div className="flex gap-2"><dt className="text-gray-500 w-28 shrink-0">Telefone:</dt><dd className="font-semibold text-gray-900">{formData.customerPhone}</dd></div>
                   {formData.customerEmail && <div className="flex gap-2"><dt className="text-gray-500 w-28 shrink-0">Email:</dt><dd className="font-semibold text-gray-900">{formData.customerEmail}</dd></div>}
-                  <div className="flex gap-2"><dt className="text-gray-500 w-28 shrink-0">Endereço:</dt><dd className="font-semibold text-gray-900">{formData.addressStreet}, {formData.addressNumber} — {formData.addressPostalCode} {formData.addressCommune}</dd></div>
+                  <div className="flex gap-2"><dt className="text-gray-500 w-28 shrink-0">Endereço:</dt><dd className="font-semibold text-gray-900">{formData.addressFull || `${formData.addressStreet}, ${formData.addressNumber} — ${formData.addressPostalCode} ${formData.addressCommune}`}</dd></div>
                   <div className="flex gap-2"><dt className="text-gray-500 w-28 shrink-0">Troco:</dt><dd className="font-semibold text-gray-900">{formData.needsChange ? `Sim — tem € ${formData.changeAmount} em mãos` : 'Não precisa'}</dd></div>
                   {formData.notes && <div className="flex gap-2"><dt className="text-gray-500 w-28 shrink-0">Obs.:</dt><dd className="text-gray-700 italic">{formData.notes}</dd></div>}
                 </dl>

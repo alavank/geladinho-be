@@ -20,8 +20,22 @@ interface Props {
   error: string;
 }
 
-export default function ConfirmModal({ formData, cartItems, activeFlavors, totalUnits, subtotalCents, freightCents, grandTotalCents, onConfirm, onBack, submitting, error }: Props) {
-  const address = [`${formData.addressStreet}, ${formData.addressNumber}`, formData.addressPostalCode, formData.addressCommune, 'Bélgica 🇧🇪'].join(' — ');
+export default function ConfirmModal({
+  formData,
+  cartItems,
+  activeFlavors,
+  totalUnits,
+  subtotalCents,
+  freightCents,
+  grandTotalCents,
+  onConfirm,
+  onBack,
+  submitting,
+  error,
+}: Props) {
+  const address =
+    formData.addressFull ||
+    [`${formData.addressStreet}, ${formData.addressNumber}`, formData.addressPostalCode, formData.addressCommune, 'Bélgica 🇧🇪'].join(' — ');
 
   return (
     <div className="max-w-lg mx-auto">

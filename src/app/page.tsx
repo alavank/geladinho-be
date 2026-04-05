@@ -17,6 +17,7 @@ type Step = 'catalog' | 'form' | 'confirm' | 'success';
 export interface FormData {
   customerName: string;
   customerPhone: string;
+  addressFull: string;
   addressStreet: string;
   addressNumber: string;
   addressPostalCode: string;
@@ -35,6 +36,7 @@ export interface ActiveFlavor {
 
 const EMPTY_FORM: FormData = {
   customerName: '', customerPhone: '',
+  addressFull: '',
   addressStreet: '', addressNumber: '',
   addressPostalCode: '', addressCommune: '',
   needsChange: false, changeAmount: '', notes: '',

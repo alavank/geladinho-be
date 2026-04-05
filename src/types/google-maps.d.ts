@@ -21,34 +21,37 @@ interface GoogleMapsPlaceAddressComponent {
 
 interface GoogleMapsPlace {
   addressComponents?: GoogleMapsPlaceAddressComponent[];
+  formattedAddress?: string;
   fetchFields: (request: { fields: string[] }) => Promise<void>;
 }
 
+interface GoogleMapsAutocompleteText {
+  toString: () => string;
+}
+
 interface GoogleMapsPlacePrediction {
+  text?: GoogleMapsAutocompleteText;
   toPlace: () => GoogleMapsPlace;
 }
 
-interface GoogleMapsPlacePredictionSelectEvent extends Event {
-  place?: GoogleMapsPlace;
-  placePrediction?: GoogleMapsPlacePrediction;
+interface GoogleMapsAutocompleteSuggestionItem {
+  placePrediction: GoogleMapsPlacePrediction;
 }
 
-interface GoogleMapsPlaceAutocompleteElement extends HTMLElement {
-  className: string;
-  includedPrimaryTypes?: string[];
-  includedRegionCodes?: string[];
-  placeholder: string;
-  requestedRegion?: string;
-  value: string;
-}
+interface GoogleMapsAutocompleteSessionToken {}
 
 interface GoogleMapsPlacesLibrary {
-  PlaceAutocompleteElement: new (opts?: {
-    includedPrimaryTypes?: string[];
-    includedRegionCodes?: string[];
-    placeholder?: string;
-    requestedRegion?: string;
-  }) => GoogleMapsPlaceAutocompleteElement;
+  AutocompleteSessionToken: new () => GoogleMapsAutocompleteSessionToken;
+  AutocompleteSuggestion: {
+    fetchAutocompleteSuggestions: (request: {
+      input: string;
+      includedPrimaryTypes?: string[];
+      includedRegionCodes?: string[];
+      language?: string;
+      region?: string;
+      sessionToken?: GoogleMapsAutocompleteSessionToken;
+    }) => Promise<{ suggestions?: GoogleMapsAutocompleteSuggestionItem[] }>;
+  };
 }
 
 interface GoogleMap {

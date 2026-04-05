@@ -90,16 +90,13 @@ export default function FornecedoresPage() {
                   value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
               </div>
               <div>
-                <label className="label">Endereço</label>
+                <label className="label">Endereço completo</label>
                 <AddressAutocomplete
                   className="w-full"
-                  placeholder="Rua, número, cidade"
+                  placeholder="Ex: Rue de la Vérité 45A, 1070 Anderlecht"
                   value={form.address}
                   onChange={(v) => setForm({ ...form, address: v })}
-                  onAddressSelected={(addr) => {
-                    const full = [addr.street, addr.number, addr.postalCode, addr.city].filter(Boolean).join(', ');
-                    setForm({ ...form, address: full });
-                  }}
+                  onAddressSelected={(addr) => setForm({ ...form, address: addr.fullAddress })}
                 />
               </div>
               <div>
