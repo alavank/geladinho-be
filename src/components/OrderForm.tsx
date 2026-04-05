@@ -5,6 +5,7 @@ import { FormData } from '@/app/page';
 import { CartItem } from '@/types';
 import { formatEUR } from '@/lib/flavors';
 import { isValidBelgianPhone } from '@/lib/phone';
+import AddressAutocomplete from './AddressAutocomplete';
 
 interface ActiveFlavor { id: string; name: string; priceEurCents: number; index: number }
 
@@ -69,7 +70,22 @@ export default function OrderForm({ initialData, onSubmit, cartItems, activeFlav
           <div className="space-y-4">
             <div>
               <label className="label">Rue, Avenue, Chaussée... *</label>
-              <input className={`input-field ${err('addressStreet')}`} placeholder="Ex: Rue de la Loi" value={form.addressStreet} onChange={(e) => set('addressStreet', e.target.value)} />
+              <AddressAutocomplete
+                className={`input-field ${err('addressStreet')}`}
+                placeholder="Ex: Rue de la Loi"
+                value={form.addressStreet}
+                onChange={(v) => set('addressStreet', v)}
+                onAddressSelected={(addr) => {
+                  setForm((prev) => ({
+                    ...prev,
+                    addressStreet: addr.street,
+                    addressNumber: addr.number || prev.addressNumber,
+                    addressPostalCode: addr.postalCode || prev.addressPostalCode,
+                    addressCommune: addr.city || prev.addressCommune,
+                  }));
+                  setErrors({});
+                }}
+              />
               {errors.addressStreet && <p className="text-red-500 text-xs mt-1">{errors.addressStreet}</p>}
             </div>
             <div>

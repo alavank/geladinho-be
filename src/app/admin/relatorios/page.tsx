@@ -10,6 +10,7 @@ import {
 } from 'recharts';
 import { Order, Expense } from '@/types';
 import { formatEUR } from '@/lib/flavors';
+import OrdersMap from '@/components/OrdersMap';
 
 interface OrderWithItems extends Omit<Order, 'order_items'> {
   order_items?: Array<{
@@ -202,6 +203,44 @@ export default function RelatoriosPage() {
     { name: 'B2C — Cliente Final', value: revenue(b2cOrders) },
     { name: 'B2B — Revenda', value: revenue(b2bOrders) },
   ].filter((d) => d.value > 0);
+
+  // Map markers — deliveries (filtered by period + channel)
+  const deliveryMarkers = useMemo(() => {
+    return filtered
+      .filter((o) => o.latitude && o.longitude)
+      .map((o) => ({
+        lat: o.latitude!,
+        lng: o.longitude!,
+        title: o.establishment_name || o.customer_name,
+        info: `${formatEUR(o.total_price_eur_cents + (o.freight_eur_cents || 0))} · ${o.total_units} un. · ${o.address_city}`,
+        color: o.channel === 'b2b' ? B2B_COLOR : B2C_COLOR,
+      }));
+  }, [filtered]);
+
+  // Map markers — all customers (unique by phone, no period filter)
+  const [customerMapChannel, setCustomerMapChannel] = useState<'all' | 'b2c' | 'b2b'>('all');
+  const customerMarkers = useMemo(() => {
+    const channelFiltered = customerMapChannel === 'all'
+      ? orders
+      : orders.filter((o) => o.channel === customerMapChannel);
+
+    // Deduplicate by phone (keep latest order per customer)
+    const byPhone: Record<string, OrderWithItems> = {};
+    channelFiltered.forEach((o) => {
+      if (!o.latitude || !o.longitude) return;
+      if (!byPhone[o.customer_phone_e164] || new Date(o.created_at) > new Date(byPhone[o.customer_phone_e164].created_at)) {
+        byPhone[o.customer_phone_e164] = o;
+      }
+    });
+
+    return Object.values(byPhone).map((o) => ({
+      lat: o.latitude!,
+      lng: o.longitude!,
+      title: o.establishment_name || o.customer_name,
+      info: `${o.address_city} · ${o.channel === 'b2b' ? 'B2B' : 'B2C'}`,
+      color: o.channel === 'b2b' ? B2B_COLOR : B2C_COLOR,
+    }));
+  }, [orders, customerMapChannel]);
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center">
@@ -463,6 +502,52 @@ export default function RelatoriosPage() {
             </div>
           </div>
         )}
+
+        {/* Map — Deliveries by period */}
+        <div className="card p-6">
+          <h2 className="font-bold text-gray-900 mb-2">🗺️ Mapa de Entregas</h2>
+          <p className="text-sm text-gray-500 mb-4">Pedidos no período e canal selecionados ({deliveryMarkers.length} com localização)</p>
+          {deliveryMarkers.length > 0 ? (
+            <OrdersMap markers={deliveryMarkers} height="400px" />
+          ) : (
+            <div className="rounded-xl bg-gray-50 border border-gray-200 p-8 text-center text-gray-400">
+              <p className="text-3xl mb-2">🗺️</p>
+              <p className="text-sm">Nenhum pedido com coordenadas no período selecionado.</p>
+              <p className="text-xs mt-1">Pedidos novos terão localização salva automaticamente.</p>
+            </div>
+          )}
+        </div>
+
+        {/* Map — All customers */}
+        <div className="card p-6">
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+            <div>
+              <h2 className="font-bold text-gray-900">👥 Mapa de Clientes</h2>
+              <p className="text-sm text-gray-500">Todos os clientes únicos ({customerMarkers.length})</p>
+            </div>
+            <div className="flex gap-2">
+              {([
+                { key: 'all', label: 'Todos' },
+                { key: 'b2c', label: '🛒 B2C' },
+                { key: 'b2b', label: '🏪 B2B' },
+              ] as { key: 'all' | 'b2c' | 'b2b'; label: string }[]).map((c) => (
+                <button key={c.key} onClick={() => setCustomerMapChannel(c.key)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${customerMapChannel === c.key ? 'text-white shadow-sm' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                  style={customerMapChannel === c.key ? { backgroundColor: c.key === 'b2b' ? B2B_COLOR : B2C_COLOR } : {}}>
+                  {c.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {customerMarkers.length > 0 ? (
+            <OrdersMap markers={customerMarkers} height="400px" />
+          ) : (
+            <div className="rounded-xl bg-gray-50 border border-gray-200 p-8 text-center text-gray-400">
+              <p className="text-3xl mb-2">👥</p>
+              <p className="text-sm">Nenhum cliente com localização registrada.</p>
+            </div>
+          )}
+        </div>
 
         {filtered.length === 0 && (
           <div className="card p-16 text-center text-gray-400">

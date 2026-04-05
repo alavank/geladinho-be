@@ -4,6 +4,7 @@ import { normalizeBelgianPhone } from '@/lib/phone';
 import { supabaseAdmin } from '@/lib/supabase';
 import { sendTelegramNotification } from '@/lib/telegram';
 import { getSettings } from '@/lib/settings-server';
+import { geocodeAddress } from '@/lib/geocoding';
 
 const OrderItemSchema = z.object({
   flavorId: z.string(),
@@ -84,6 +85,11 @@ export async function POST(request: NextRequest) {
       ? (data.customerName || data.establishmentName || 'Contato')
       : (data.customerName || 'Cliente');
 
+    // Geocode address (non-blocking — doesn't fail if geocoding fails)
+    const coords = await geocodeAddress(
+      data.addressStreet, data.addressNumber, data.addressPostalCode, data.addressCommune
+    );
+
     const { data: order, error: orderError } = await supabaseAdmin
       .from('orders')
       .insert({
@@ -105,6 +111,8 @@ export async function POST(request: NextRequest) {
         total_units: totalUnits,
         total_price_eur_cents: subtotalCents,
         freight_eur_cents: freightCents,
+        latitude: coords?.lat ?? null,
+        longitude: coords?.lng ?? null,
         status: 'novo',
       })
       .select()

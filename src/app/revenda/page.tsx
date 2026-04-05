@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { SystemSettings, FlavorConfig } from '@/lib/settings';
 import { CartItem } from '@/types';
 import { formatEUR } from '@/lib/flavors';
+import AddressAutocomplete from '@/components/AddressAutocomplete';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -360,8 +361,22 @@ export default function RevendaPage() {
                   <div className="space-y-4">
                     <div>
                       <label className="label">Rue, Avenue, Chaussée... *</label>
-                      <input className={`input-field ${errClass('addressStreet')}`} placeholder="Ex: Rue de la Loi"
-                        value={formData.addressStreet} onChange={(e) => setField('addressStreet', e.target.value)} />
+                      <AddressAutocomplete
+                        className={`input-field ${errClass('addressStreet')}`}
+                        placeholder="Ex: Rue de la Loi"
+                        value={formData.addressStreet}
+                        onChange={(v) => setField('addressStreet', v)}
+                        onAddressSelected={(addr) => {
+                          setFormData((prev) => ({
+                            ...prev,
+                            addressStreet: addr.street,
+                            addressNumber: addr.number || prev.addressNumber,
+                            addressPostalCode: addr.postalCode || prev.addressPostalCode,
+                            addressCommune: addr.city || prev.addressCommune,
+                          }));
+                          setErrors({});
+                        }}
+                      />
                       {errors.addressStreet && <p className="text-red-500 text-xs mt-1">{errors.addressStreet}</p>}
                     </div>
                     <div className="grid grid-cols-2 gap-3">

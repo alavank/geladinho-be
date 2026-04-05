@@ -104,6 +104,8 @@ export interface Order {
   total_units: number;
   total_price_eur_cents: number;
   freight_eur_cents: number;
+  latitude: number | null;
+  longitude: number | null;
   status: OrderStatus;
   order_items?: OrderItem[];
 }

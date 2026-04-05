@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Supplier } from '@/types';
+import AddressAutocomplete from '@/components/AddressAutocomplete';
 
 export default function FornecedoresPage() {
   const router = useRouter();
@@ -90,8 +91,16 @@ export default function FornecedoresPage() {
               </div>
               <div>
                 <label className="label">Endereço</label>
-                <input type="text" className="input-field" placeholder="Rua, número, cidade"
-                  value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+                <AddressAutocomplete
+                  className="input-field"
+                  placeholder="Rua, número, cidade"
+                  value={form.address}
+                  onChange={(v) => setForm({ ...form, address: v })}
+                  onAddressSelected={(addr) => {
+                    const full = [addr.street, addr.number, addr.postalCode, addr.city].filter(Boolean).join(', ');
+                    setForm({ ...form, address: full });
+                  }}
+                />
               </div>
               <div>
                 <label className="label">Telefone</label>
