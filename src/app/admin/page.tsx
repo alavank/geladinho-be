@@ -1,12 +1,18 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Order, OrderChannel, OrderStatusConfig } from '@/types';
+import { hasStructuredAddress } from '@/lib/address';
+import {
+  getCustomerDisplayName,
+  getCustomerFullAddress,
+  getCustomerLinkDraft,
+} from '@/lib/customers';
 import { formatEUR } from '@/lib/flavors';
 import { DEFAULT_ORDER_STATUS_CONFIGS, getStatusBadgeStyle, getStatusConfig } from '@/lib/orders';
+import { Customer, Order, OrderStatusConfig } from '@/types';
 
 function formatDate(dateStr: string): string {
   return new Intl.DateTimeFormat('pt-BR', {
@@ -21,22 +27,39 @@ function formatDate(dateStr: string): string {
 
 type ChannelFilter = 'all' | 'b2c' | 'b2b';
 
+function getOrderDisplayName(order: Order) {
+  if (order.establishment_name) {
+    return `${order.establishment_name} (${order.customer_name})`;
+  }
+  return order.customer_name;
+}
+
 export default function AdminPage() {
   const [orders, setOrders] = useState<Order[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [statusConfigs, setStatusConfigs] = useState<OrderStatusConfig[]>(DEFAULT_ORDER_STATUS_CONFIGS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [channelFilter, setChannelFilter] = useState<ChannelFilter>('all');
+  const [linkingOrder, setLinkingOrder] = useState<Order | null>(null);
+  const [selectedCustomerId, setSelectedCustomerId] = useState('');
+  const [bindingOrderId, setBindingOrderId] = useState<string | null>(null);
+  const [bindingError, setBindingError] = useState('');
   const router = useRouter();
 
   const fetchOrders = async () => {
-    const [ordersResponse, statusesResponse] = await Promise.all([
+    const [ordersResponse, statusesResponse, customersResponse] = await Promise.all([
       fetch('/api/admin/orders'),
       fetch('/api/admin/order-statuses'),
+      fetch('/api/admin/customers'),
     ]);
 
-    if (ordersResponse.status === 401 || statusesResponse.status === 401) {
+    if (
+      ordersResponse.status === 401 ||
+      statusesResponse.status === 401 ||
+      customersResponse.status === 401
+    ) {
       router.push('/admin/login');
       return;
     }
@@ -47,14 +70,17 @@ export default function AdminPage() {
       return;
     }
 
-    const nextOrders = await ordersResponse.json();
-    setOrders(nextOrders);
+    setOrders(await ordersResponse.json());
 
     if (statusesResponse.ok) {
       const nextConfigs = await statusesResponse.json();
       if (Array.isArray(nextConfigs) && nextConfigs.length > 0) {
         setStatusConfigs(nextConfigs);
       }
+    }
+
+    if (customersResponse.ok) {
+      setCustomers(await customersResponse.json());
     }
 
     setLoading(false);
@@ -72,7 +98,8 @@ export default function AdminPage() {
   };
 
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Excluir o pedido de ${name}? Esta ação não pode ser desfeita.`)) return;
+    if (!confirm(`Excluir o pedido de ${name}? Esta acao nao pode ser desfeita.`)) return;
+
     setDeletingId(id);
     const response = await fetch(`/api/admin/orders/${id}`, { method: 'DELETE' });
     if (response.ok) {
@@ -81,6 +108,20 @@ export default function AdminPage() {
       alert('Erro ao excluir pedido. Tente novamente.');
     }
     setDeletingId(null);
+  };
+
+  const handleOpenBindingModal = (order: Order) => {
+    setLinkingOrder(order);
+    setSelectedCustomerId(order.customer_id || '');
+    setBindingError('');
+    setBindingOrderId(null);
+  };
+
+  const handleCloseBindingModal = () => {
+    setLinkingOrder(null);
+    setSelectedCustomerId('');
+    setBindingError('');
+    setBindingOrderId(null);
   };
 
   const filteredOrders = orders.filter((order) => channelFilter === 'all' || order.channel === channelFilter);
@@ -96,6 +137,21 @@ export default function AdminPage() {
   const b2cCount = orders.filter((order) => order.channel === 'b2c').length;
   const b2bCount = orders.filter((order) => order.channel === 'b2b').length;
 
+  const modalCustomers = useMemo(() => {
+    if (!linkingOrder) return [];
+    return customers.filter((customer) => customer.type === linkingOrder.channel && customer.active);
+  }, [customers, linkingOrder]);
+
+  const selectedCustomer = modalCustomers.find((customer) => customer.id === selectedCustomerId) || null;
+  const selectedCustomerHasStructuredAddress =
+    !!selectedCustomer &&
+    hasStructuredAddress({
+      street: selectedCustomer.address_street || '',
+      number: selectedCustomer.address_number || '',
+      postalCode: selectedCustomer.address_postal_code || '',
+      city: selectedCustomer.address_city || '',
+    });
+
   const adminShortcuts = [
     {
       href: '/admin/clientes',
@@ -106,22 +162,68 @@ export default function AdminPage() {
     {
       href: '/admin/gastos/fornecedores',
       title: 'Fornecedores',
-      description: 'Centralize os fornecedores e os endereços completos usados nas compras.',
+      description: 'Centralize os fornecedores e os enderecos completos usados nas compras.',
       accent: 'border-blue-200 bg-blue-50 text-blue-700',
     },
     {
       href: '/admin/parametros',
-      title: 'Parâmetros',
-      description: 'Ajuste tipos de gasto e a apresentação dos status dos pedidos.',
+      title: 'Parametros',
+      description: 'Ajuste tipos de gasto e a apresentacao dos status dos pedidos.',
       accent: 'border-amber-200 bg-amber-50 text-amber-700',
     },
     {
       href: '/admin/gastos',
       title: 'Compras e Gastos',
-      description: 'Acesse o financeiro com notas, compras completas e leitura automática.',
+      description: 'Acesse o financeiro com notas, compras completas e leitura automatica.',
       accent: 'border-emerald-200 bg-emerald-50 text-emerald-700',
     },
   ];
+
+  const handleConfirmBinding = async () => {
+    if (!linkingOrder || !selectedCustomer) return;
+    if (!selectedCustomerHasStructuredAddress) {
+      setBindingError('Este cliente ainda nao tem endereco estruturado completo.');
+      return;
+    }
+
+    const confirmMessage = `Tem certeza que deseja substituir o cliente "${getOrderDisplayName(linkingOrder)}" por "${getCustomerDisplayName(selectedCustomer)}"?`;
+    if (!confirm(confirmMessage)) return;
+
+    const draft = getCustomerLinkDraft(selectedCustomer);
+    setBindingOrderId(linkingOrder.id);
+    setBindingError('');
+
+    const response = await fetch(`/api/admin/orders/${linkingOrder.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        customer_id: draft.customer_id,
+        customer_name: draft.customer_name,
+        establishment_name: linkingOrder.channel === 'b2b' ? draft.establishment_name : null,
+        customer_phone: draft.customer_phone,
+        customer_email: draft.customer_email,
+        address_street: draft.address_street,
+        address_number: draft.address_number,
+        address_postal_code: draft.address_postal_code,
+        address_city: draft.address_city,
+        address_country: 'Belgium',
+        notes: draft.notes,
+      }),
+    });
+
+    if (response.ok) {
+      const updatedOrder = await response.json();
+      setOrders((prev) => prev.map((order) => (
+        order.id === linkingOrder.id ? { ...order, ...updatedOrder } : order
+      )));
+      handleCloseBindingModal();
+      return;
+    }
+
+    const data = await response.json().catch(() => ({}));
+    setBindingError(data.error || 'Erro ao vincular cliente');
+    setBindingOrderId(null);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -135,16 +237,16 @@ export default function AdminPage() {
             Fornecedores
           </Link>
           <Link href="/admin/parametros" className="rounded-lg border border-amber-200 px-3 py-1.5 text-sm font-medium text-amber-700 hover:bg-amber-50 hover:text-amber-900">
-            Parâmetros
+            Parametros
           </Link>
           <Link href="/admin/gastos" className="rounded-lg border border-orange-200 px-3 py-1.5 text-sm font-medium text-orange-700 hover:bg-orange-50 hover:text-orange-900">
             Gastos
           </Link>
           <Link href="/admin/relatorios" className="rounded-lg border border-purple-200 px-3 py-1.5 text-sm font-medium text-purple-700 hover:bg-purple-50 hover:text-purple-900">
-            Relatórios
+            Relatorios
           </Link>
           <Link href="/admin/configuracoes" className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900">
-            Configurações
+            Configuracoes
           </Link>
           <button onClick={() => void fetchOrders()} className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-700">
             Atualizar
@@ -159,7 +261,7 @@ export default function AdminPage() {
         <section className="mb-8">
           <div className="mb-4">
             <h2 className="text-xl font-bold text-gray-900">Cadastros Gerais</h2>
-            <p className="text-sm text-gray-500">Atalhos rápidos para os cadastros principais e parâmetros do sistema.</p>
+            <p className="text-sm text-gray-500">Atalhos rapidos para os cadastros principais e parametros do sistema.</p>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -211,14 +313,13 @@ export default function AdminPage() {
         </div>
 
         <h2 className="mb-4 text-xl font-bold text-gray-900">Pedidos ({filteredOrders.length})</h2>
-
         {loading ? (
           <div className="py-12 text-center text-gray-400">Carregando...</div>
         ) : error ? (
           <div className="rounded-xl bg-red-50 p-4 text-red-600">{error}</div>
         ) : filteredOrders.length === 0 ? (
           <div className="card p-12 text-center text-gray-400">
-            <p className="text-4xl mb-3">Pedidos</p>
+            <p className="mb-3 text-4xl">Pedidos</p>
             <p>Nenhum pedido encontrado.</p>
           </div>
         ) : (
@@ -227,7 +328,7 @@ export default function AdminPage() {
               <table className="w-full text-sm">
                 <thead className="border-b border-gray-200 bg-gray-50">
                   <tr>
-                    {['Canal', 'Data/Hora', 'Cliente / Estabelecimento', 'Telefone', 'Comuna', 'Unid.', 'Total EUR', 'Status', 'Ações'].map((header) => (
+                    {['Canal', 'Data/Hora', 'Cliente / Estabelecimento', 'Telefone', 'Comuna', 'Unid.', 'Total EUR', 'Status', 'Acoes'].map((header) => (
                       <th key={header} className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                         {header}
                       </th>
@@ -279,7 +380,14 @@ export default function AdminPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenBindingModal(order)}
+                            className="rounded-lg border border-blue-200 px-2.5 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-50"
+                          >
+                            Vincular
+                          </button>
                           <Link href={`/admin/pedidos/${order.id}`} className="whitespace-nowrap text-xs font-semibold text-brand-600 hover:text-brand-800">
                             Ver →
                           </Link>
@@ -301,6 +409,98 @@ export default function AdminPage() {
           </div>
         )}
       </div>
+
+      {linkingOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 px-4">
+          <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl">
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Vincular cliente</h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  Substituir o cliente atual <span className="font-semibold text-gray-700">{getOrderDisplayName(linkingOrder)}</span> por um cadastro estruturado.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleCloseBindingModal}
+                className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+              >
+                Fechar
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="rounded-xl bg-gray-50 p-4 text-sm text-gray-600">
+                <p><span className="font-semibold text-gray-800">Cliente atual:</span> {getOrderDisplayName(linkingOrder)}</p>
+                <p className="mt-1"><span className="font-semibold text-gray-800">Endereco atual:</span> {linkingOrder.address_street} {linkingOrder.address_number}, {linkingOrder.address_postal_code} {linkingOrder.address_city}</p>
+              </div>
+
+              <div>
+                <label className="label">Substituir por:</label>
+                <select
+                  value={selectedCustomerId}
+                  onChange={(event) => {
+                    setSelectedCustomerId(event.target.value);
+                    setBindingError('');
+                  }}
+                  className="input-field"
+                >
+                  <option value="">Selecione um cliente cadastrado</option>
+                  {modalCustomers.map((customer) => (
+                    <option key={customer.id} value={customer.id}>
+                      {getCustomerDisplayName(customer)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {modalCustomers.length === 0 && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                  Nenhum cliente cadastrado para este tipo de pedido. Cadastre primeiro em <Link href="/admin/clientes" className="font-semibold underline">Clientes</Link>.
+                </div>
+              )}
+
+              {selectedCustomer && (
+                <div className="rounded-xl border border-brand-100 bg-brand-50 p-4 text-sm text-brand-900">
+                  <p className="font-semibold">{getCustomerDisplayName(selectedCustomer)}</p>
+                  <p className="mt-1">{selectedCustomer.phone_e164}</p>
+                  {selectedCustomer.email && <p className="mt-1">{selectedCustomer.email}</p>}
+                  <p className="mt-1">{getCustomerFullAddress(selectedCustomer) || 'Endereco nao estruturado'}</p>
+                  {!selectedCustomerHasStructuredAddress && (
+                    <p className="mt-2 text-xs text-red-600">
+                      Este cliente ainda nao tem endereco estruturado completo. Edite o cadastro dele antes de confirmar.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {bindingError && (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {bindingError}
+                </div>
+              )}
+
+              <div className="flex flex-wrap justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={handleCloseBindingModal}
+                  className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-gray-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleConfirmBinding()}
+                  disabled={!selectedCustomer || !selectedCustomerHasStructuredAddress || bindingOrderId === linkingOrder.id}
+                  className="btn-primary px-5 py-2.5 text-sm disabled:opacity-50"
+                >
+                  {bindingOrderId === linkingOrder.id ? 'Vinculando...' : 'Confirmar substituicao'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

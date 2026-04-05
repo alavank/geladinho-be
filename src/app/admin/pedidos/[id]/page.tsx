@@ -4,8 +4,12 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
-import { formatFullAddress } from '@/lib/address';
-import { getCustomerDisplayName } from '@/lib/customers';
+import { hasStructuredAddress } from '@/lib/address';
+import {
+  getCustomerDisplayName,
+  getCustomerFullAddress,
+  getCustomerLinkDraft,
+} from '@/lib/customers';
 import { formatEUR } from '@/lib/flavors';
 import {
   DEFAULT_ORDER_STATUS_CONFIGS,
@@ -70,6 +74,7 @@ export default function OrderDetailPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [statusConfigs, setStatusConfigs] = useState<OrderStatusConfig[]>(DEFAULT_ORDER_STATUS_CONFIGS);
   const [form, setForm] = useState<EditableOrderForm | null>(null);
+  const [isEditingCustomer, setIsEditingCustomer] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [pageError, setPageError] = useState('');
@@ -100,7 +105,7 @@ export default function OrderDetailPage() {
     }
 
     if (!orderResponse.ok) {
-      setPageError('Pedido não encontrado');
+      setPageError('Pedido nao encontrado');
       setLoading(false);
       return;
     }
@@ -127,6 +132,21 @@ export default function OrderDetailPage() {
     void fetchPageData();
   }, [id]);
 
+  const handleStartEditCustomer = () => {
+    if (!order) return;
+    setForm(createFormFromOrder(order));
+    setCustomerError('');
+    setCustomerSuccess('');
+    setIsEditingCustomer(true);
+  };
+
+  const handleCancelCustomerEdit = () => {
+    if (!order) return;
+    setForm(createFormFromOrder(order));
+    setCustomerError('');
+    setIsEditingCustomer(false);
+  };
+
   const updateStatus = async (newStatus: OrderStatus) => {
     if (!order) return;
     setUpdatingStatus(true);
@@ -140,7 +160,7 @@ export default function OrderDetailPage() {
 
     if (response.ok) {
       const updatedOrder = await response.json();
-      setOrder((prev) => prev ? { ...prev, ...updatedOrder, order_items: prev.order_items } : prev);
+      setOrder((prev) => (prev ? { ...prev, ...updatedOrder, order_items: prev.order_items } : prev));
     } else {
       const data = await response.json().catch(() => ({}));
       setPageError(data.error || 'Erro ao atualizar status');
@@ -156,17 +176,17 @@ export default function OrderDetailPage() {
     setCustomerSuccess('');
 
     if (!form.customer_name.trim()) {
-      setCustomerError(order.channel === 'b2b' ? 'O contato responsável é obrigatório' : 'O nome do cliente é obrigatório');
+      setCustomerError(order.channel === 'b2b' ? 'O contato responsavel e obrigatorio' : 'O nome do cliente e obrigatorio');
       return;
     }
 
     if (!form.customer_phone.trim()) {
-      setCustomerError('O telefone é obrigatório');
+      setCustomerError('O telefone e obrigatorio');
       return;
     }
 
     if (!form.address_street || !form.address_number || !form.address_postal_code || !form.address_city) {
-      setCustomerError('Selecione um endereço completo na lista para salvar o pedido');
+      setCustomerError('Selecione um endereco completo na lista para salvar o pedido');
       return;
     }
 
@@ -192,10 +212,11 @@ export default function OrderDetailPage() {
 
     if (response.ok) {
       const updatedOrder = await response.json();
-      setOrder((prev) => prev ? { ...prev, ...updatedOrder, order_items: prev.order_items } : prev);
-      const nextMergedOrder = { ...(order || {}), ...updatedOrder } as Order;
+      setOrder((prev) => (prev ? { ...prev, ...updatedOrder, order_items: prev.order_items } : prev));
+      const nextMergedOrder = { ...order, ...updatedOrder } as Order;
       setForm(createFormFromOrder(nextMergedOrder));
       setCustomerSuccess('Dados do pedido atualizados com sucesso.');
+      setIsEditingCustomer(false);
       setTimeout(() => setCustomerSuccess(''), 4000);
     } else {
       const data = await response.json().catch(() => ({}));
@@ -207,7 +228,8 @@ export default function OrderDetailPage() {
 
   const handleDelete = async () => {
     if (!order) return;
-    if (!confirm(`Excluir o pedido de ${order.customer_name}? Esta ação não pode ser desfeita.`)) return;
+    if (!confirm(`Excluir o pedido de ${order.customer_name}? Esta acao nao pode ser desfeita.`)) return;
+
     setDeleting(true);
 
     const response = await fetch(`/api/admin/orders/${id}`, { method: 'DELETE' });
@@ -225,7 +247,7 @@ export default function OrderDetailPage() {
     const cents = Math.round(parseFloat(freightValue.replace(',', '.')) * 100);
 
     if (isNaN(cents) || cents <= 0) {
-      setPageError('Insira um valor válido para o frete');
+      setPageError('Insira um valor valido para o frete');
       return;
     }
 
@@ -239,7 +261,7 @@ export default function OrderDetailPage() {
     });
 
     if (response.ok) {
-      setOrder((prev) => prev ? { ...prev, freight_eur_cents: cents } : prev);
+      setOrder((prev) => (prev ? { ...prev, freight_eur_cents: cents } : prev));
       setShowFreightInput(false);
       setFreightSuccess('Frete salvo com sucesso. Mensagem atualizada enviada.');
       setTimeout(() => setFreightSuccess(''), 4000);
@@ -262,7 +284,7 @@ export default function OrderDetailPage() {
     });
 
     if (response.ok) {
-      setOrder((prev) => prev ? { ...prev, freight_eur_cents: 0 } : prev);
+      setOrder((prev) => (prev ? { ...prev, freight_eur_cents: 0 } : prev));
       setShowFreightInput(false);
       setFreightValue('');
       setFreightSuccess('Frete removido com sucesso.');
@@ -301,7 +323,20 @@ export default function OrderDetailPage() {
   const availableStatuses = statusConfigs
     .filter((config) => config.active)
     .sort((a, b) => a.sort_order - b.sort_order);
-  const matchingCustomers = customers.filter((customer) => customer.type === order.channel && (customer.active || customer.id === form.customer_id));
+  const matchingCustomers = customers.filter(
+    (customer) => customer.type === order.channel && (customer.active || customer.id === form.customer_id)
+  );
+  const linkedCustomer = customers.find((customer) => customer.id === order.customer_id) || null;
+  const linkedCustomerLabel = linkedCustomer ? getCustomerDisplayName(linkedCustomer) : 'Nao vinculado';
+  const formCustomerPreview = matchingCustomers.find((customer) => customer.id === form.customer_id) || null;
+  const canBindSelectedCustomer =
+    !!formCustomerPreview &&
+    hasStructuredAddress({
+      street: formCustomerPreview.address_street || '',
+      number: formCustomerPreview.address_number || '',
+      postalCode: formCustomerPreview.address_postal_code || '',
+      city: formCustomerPreview.address_city || '',
+    });
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -382,219 +417,285 @@ export default function OrderDetailPage() {
         </div>
 
         <div className="card p-5">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <h2 className="font-bold text-gray-800">
-              {isB2B ? 'Dados do Estabelecimento' : 'Dados do Cliente'}
-            </h2>
-            <button
-              type="button"
-              onClick={() => setForm(createFormFromOrder(order))}
-              className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50"
-            >
-              Reverter alterações
-            </button>
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="font-bold text-gray-800">
+                {isB2B ? 'Dados do Estabelecimento' : 'Dados do Cliente'}
+              </h2>
+              <p className="mt-1 text-sm text-gray-500">
+                {order.customer_id ? `Vinculado a: ${linkedCustomerLabel}` : 'Pedido ainda nao vinculado a um cliente estruturado.'}
+              </p>
+            </div>
+
+            {!isEditingCustomer ? (
+              <button
+                type="button"
+                onClick={handleStartEditCustomer}
+                className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+              >
+                Editar
+              </button>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handleCancelCustomerEdit}
+                  className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm(createFormFromOrder(order))}
+                  className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50"
+                >
+                  Reverter
+                </button>
+              </div>
+            )}
           </div>
 
-          <div className="space-y-4">
-            <div>
-              <label className="label">Cliente cadastrado</label>
-              <div className="flex flex-wrap items-center gap-3">
-                <select
-                  value={form.customer_id}
-                  onChange={(event) => {
-                    const nextCustomerId = event.target.value;
-                    const selectedCustomer = matchingCustomers.find((customer) => customer.id === nextCustomerId);
+          {!isEditingCustomer ? (
+            <div className="space-y-4">
+              {customerSuccess && (
+                <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+                  {customerSuccess}
+                </div>
+              )}
 
-                    if (!selectedCustomer) {
-                      setForm((prev) => prev ? { ...prev, customer_id: '' } : prev);
-                      return;
-                    }
+              <dl className="grid gap-4 text-sm sm:grid-cols-2">
+                {isB2B && order.establishment_name && (
+                  <div>
+                    <dt className="text-xs uppercase tracking-wide text-gray-500">Estabelecimento</dt>
+                    <dd className="mt-1 font-semibold text-gray-900">{order.establishment_name}</dd>
+                  </div>
+                )}
 
-                    const customerAddress =
-                      selectedCustomer.address_full ||
-                      formatFullAddress({
-                        street: selectedCustomer.address_street || '',
-                        number: selectedCustomer.address_number || '',
-                        postalCode: selectedCustomer.address_postal_code || '',
-                        city: selectedCustomer.address_city || '',
-                        country: 'Belgium',
-                      });
+                <div>
+                  <dt className="text-xs uppercase tracking-wide text-gray-500">
+                    {isB2B ? 'Contato responsavel' : 'Nome do cliente'}
+                  </dt>
+                  <dd className="mt-1 font-semibold text-gray-900">{order.customer_name}</dd>
+                </div>
 
+                <div>
+                  <dt className="text-xs uppercase tracking-wide text-gray-500">Telefone</dt>
+                  <dd className="mt-1 font-semibold text-gray-900">{order.customer_phone_e164}</dd>
+                </div>
+
+                {order.customer_email && (
+                  <div>
+                    <dt className="text-xs uppercase tracking-wide text-gray-500">Email</dt>
+                    <dd className="mt-1 font-semibold text-gray-900">{order.customer_email}</dd>
+                  </div>
+                )}
+
+                <div className="sm:col-span-2">
+                  <dt className="text-xs uppercase tracking-wide text-gray-500">Endereco completo</dt>
+                  <dd className="mt-1 font-semibold text-gray-900">{formatOrderAddress(order)}</dd>
+                </div>
+
+                <div>
+                  <dt className="text-xs uppercase tracking-wide text-gray-500">Vinculo estruturado</dt>
+                  <dd className="mt-1 font-semibold text-gray-900">{linkedCustomerLabel}</dd>
+                </div>
+
+                <div>
+                  <dt className="text-xs uppercase tracking-wide text-gray-500">Pedido feito em</dt>
+                  <dd className="mt-1 font-semibold text-gray-900">{formatDate(order.created_at)}</dd>
+                </div>
+
+                {order.notes && (
+                  <div className="sm:col-span-2">
+                    <dt className="text-xs uppercase tracking-wide text-gray-500">Observacoes</dt>
+                    <dd className="mt-1 text-gray-700">{order.notes}</dd>
+                  </div>
+                )}
+              </dl>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div>
+                <label className="label">Vincular cliente?</label>
+                <div className="flex flex-wrap items-center gap-3">
+                  <select
+                    value={form.customer_id}
+                    onChange={(event) => {
+                      const nextCustomerId = event.target.value;
+                      const selectedCustomer = matchingCustomers.find((customer) => customer.id === nextCustomerId);
+
+                      if (!selectedCustomer) {
+                        setForm((prev) => (prev ? { ...prev, customer_id: '' } : prev));
+                        return;
+                      }
+
+                      const draft = getCustomerLinkDraft(selectedCustomer);
+                      setForm((prev) => (prev ? { ...prev, ...draft } : prev));
+                      setCustomerError('');
+                    }}
+                    className="input-field max-w-xl"
+                  >
+                    <option value="">Nao vincular agora / manter preenchimento manual</option>
+                    {matchingCustomers.map((customer) => (
+                      <option key={customer.id} value={customer.id}>
+                        {getCustomerDisplayName(customer)}
+                      </option>
+                    ))}
+                  </select>
+
+                  {form.customer_id && (
+                    <button
+                      type="button"
+                      onClick={() => setForm((prev) => (prev ? { ...prev, customer_id: '' } : prev))}
+                      className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50"
+                    >
+                      Limpar vinculo
+                    </button>
+                  )}
+                </div>
+                <p className="mt-1 text-xs text-gray-400">
+                  Use isto quando o pedido chegou digitado manualmente e voce quer substituir pelos dados estruturados do cadastro.
+                </p>
+              </div>
+
+              {formCustomerPreview && (
+                <div className="rounded-xl border border-brand-100 bg-brand-50 p-4 text-sm text-brand-900">
+                  <p className="font-semibold">{getCustomerDisplayName(formCustomerPreview)}</p>
+                  <p className="mt-1">{formCustomerPreview.phone_e164}</p>
+                  {formCustomerPreview.email && <p className="mt-1">{formCustomerPreview.email}</p>}
+                  <p className="mt-1">{getCustomerFullAddress(formCustomerPreview) || 'Endereco nao estruturado'}</p>
+                  {!canBindSelectedCustomer && (
+                    <p className="mt-2 text-xs text-red-600">
+                      Este cliente ainda nao tem endereco estruturado completo. Complete o endereco abaixo antes de salvar.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {isB2B && (
+                <div>
+                  <label className="label">Estabelecimento</label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    placeholder="Ex: Supermercado Bom Preco"
+                    value={form.establishment_name}
+                    onChange={(event) => setForm((prev) => (prev ? { ...prev, establishment_name: event.target.value } : prev))}
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="label">{isB2B ? 'Contato responsavel *' : 'Nome do cliente *'}</label>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder={isB2B ? 'Ex: Joao Silva' : 'Ex: Maria Silva'}
+                  value={form.customer_name}
+                  onChange={(event) => setForm((prev) => (prev ? { ...prev, customer_name: event.target.value } : prev))}
+                />
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="label">Telefone *</label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    placeholder="+32 470 12 34 56"
+                    value={form.customer_phone}
+                    onChange={(event) => setForm((prev) => (prev ? { ...prev, customer_phone: event.target.value } : prev))}
+                  />
+                </div>
+                <div>
+                  <label className="label">Email</label>
+                  <input
+                    type="email"
+                    className="input-field"
+                    placeholder="contato@cliente.be"
+                    value={form.customer_email}
+                    onChange={(event) => setForm((prev) => (prev ? { ...prev, customer_email: event.target.value } : prev))}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="label">Endereco completo *</label>
+                <AddressAutocomplete
+                  className="w-full"
+                  placeholder="Ex: Rue de la Verite 45A, 1070 Anderlecht"
+                  value={form.address_full}
+                  onChange={(nextValue, meta) => {
                     setForm((prev) => prev ? ({
                       ...prev,
-                      customer_id: selectedCustomer.id,
-                      customer_name: selectedCustomer.name,
-                      establishment_name: selectedCustomer.establishment_name || '',
-                      customer_phone: selectedCustomer.phone_e164,
-                      customer_email: selectedCustomer.email || '',
-                      address_full: customerAddress,
-                      address_street: selectedCustomer.address_street || '',
-                      address_number: selectedCustomer.address_number || '',
-                      address_postal_code: selectedCustomer.address_postal_code || '',
-                      address_city: selectedCustomer.address_city || '',
-                      notes: selectedCustomer.notes || prev.notes,
+                      address_full: nextValue,
+                      ...(meta?.selected ? {} : {
+                        address_street: '',
+                        address_number: '',
+                        address_postal_code: '',
+                        address_city: '',
+                      }),
+                    }) : prev);
+                  }}
+                  onAddressSelected={(address) => {
+                    setForm((prev) => prev ? ({
+                      ...prev,
+                      address_full: address.fullAddress,
+                      address_street: address.street,
+                      address_number: address.number,
+                      address_postal_code: address.postalCode,
+                      address_city: address.city,
                     }) : prev);
                     setCustomerError('');
                   }}
-                  className="input-field max-w-xl"
+                />
+                <p className="mt-1 text-xs text-gray-400">
+                  Selecione uma sugestao para atualizar rua, numero, codigo postal e comuna.
+                </p>
+              </div>
+
+              <div>
+                <label className="label">Observacoes</label>
+                <textarea
+                  className="input-field"
+                  rows={3}
+                  placeholder="Notas internas sobre este pedido..."
+                  value={form.notes}
+                  onChange={(event) => setForm((prev) => (prev ? { ...prev, notes: event.target.value } : prev))}
+                />
+              </div>
+
+              <div className="rounded-xl bg-gray-50 p-4 text-sm text-gray-600">
+                <p><span className="font-semibold text-gray-800">Endereco atual:</span> {formatOrderAddress(order)}</p>
+                <p className="mt-1"><span className="font-semibold text-gray-800">Pedido feito em:</span> {formatDate(order.created_at)}</p>
+              </div>
+
+              {customerError && (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {customerError}
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => void handleSaveCustomerData()}
+                  disabled={savingCustomer}
+                  className="btn-primary px-6 py-2.5 disabled:opacity-50"
                 >
-                  <option value="">Pedido avulso / preenchimento manual</option>
-                  {matchingCustomers.map((customer) => (
-                    <option key={customer.id} value={customer.id}>
-                      {getCustomerDisplayName(customer)}
-                    </option>
-                  ))}
-                </select>
-
-                {form.customer_id && (
-                  <button
-                    type="button"
-                    onClick={() => setForm((prev) => prev ? { ...prev, customer_id: '' } : prev)}
-                    className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50"
-                  >
-                    Desvincular cadastro
-                  </button>
-                )}
+                  {savingCustomer ? 'Salvando...' : 'Salvar dados do pedido'}
+                </button>
+                <a
+                  href={makeWhatsAppLink(form.customer_phone || order.customer_phone_e164)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-secondary px-6 py-2.5"
+                >
+                  Testar WhatsApp
+                </a>
               </div>
             </div>
-
-            {isB2B && (
-              <div>
-                <label className="label">Estabelecimento</label>
-                <input
-                  type="text"
-                  className="input-field"
-                  placeholder="Ex: Supermercado Bom Preço"
-                  value={form.establishment_name}
-                  onChange={(event) => setForm((prev) => prev ? { ...prev, establishment_name: event.target.value } : prev)}
-                />
-              </div>
-            )}
-
-            <div>
-              <label className="label">{isB2B ? 'Contato responsável *' : 'Nome do cliente *'}</label>
-              <input
-                type="text"
-                className="input-field"
-                placeholder={isB2B ? 'Ex: João Silva' : 'Ex: Maria Silva'}
-                value={form.customer_name}
-                onChange={(event) => setForm((prev) => prev ? { ...prev, customer_name: event.target.value } : prev)}
-              />
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <label className="label">Telefone *</label>
-                <input
-                  type="text"
-                  className="input-field"
-                  placeholder="+32 470 12 34 56"
-                  value={form.customer_phone}
-                  onChange={(event) => setForm((prev) => prev ? { ...prev, customer_phone: event.target.value } : prev)}
-                />
-              </div>
-              <div>
-                <label className="label">Email</label>
-                <input
-                  type="email"
-                  className="input-field"
-                  placeholder="contato@cliente.be"
-                  value={form.customer_email}
-                  onChange={(event) => setForm((prev) => prev ? { ...prev, customer_email: event.target.value } : prev)}
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="label">Endereço completo *</label>
-              <AddressAutocomplete
-                className="w-full"
-                placeholder="Ex: Rue de la Vérité 45A, 1070 Anderlecht"
-                value={form.address_full}
-                onChange={(nextValue, meta) => {
-                  setForm((prev) => prev ? ({
-                    ...prev,
-                    address_full: nextValue,
-                    ...(meta?.selected ? {} : {
-                      address_street: '',
-                      address_number: '',
-                      address_postal_code: '',
-                      address_city: '',
-                    }),
-                  }) : prev);
-                }}
-                onAddressSelected={(address) => {
-                  const normalizedFullAddress =
-                    address.fullAddress ||
-                    formatFullAddress({
-                      street: address.street,
-                      number: address.number,
-                      postalCode: address.postalCode,
-                      city: address.city,
-                      country: 'Belgium',
-                    });
-
-                  setForm((prev) => prev ? ({
-                    ...prev,
-                    address_full: normalizedFullAddress,
-                    address_street: address.street,
-                    address_number: address.number,
-                    address_postal_code: address.postalCode,
-                    address_city: address.city,
-                  }) : prev);
-                  setCustomerError('');
-                }}
-              />
-              <p className="mt-1 text-xs text-gray-400">Selecione uma sugestão para atualizar rua, número, código postal e comuna.</p>
-            </div>
-
-            <div>
-              <label className="label">Observações</label>
-              <textarea
-                className="input-field"
-                rows={3}
-                placeholder="Notas internas sobre este pedido..."
-                value={form.notes}
-                onChange={(event) => setForm((prev) => prev ? { ...prev, notes: event.target.value } : prev)}
-              />
-            </div>
-
-            <div className="rounded-xl bg-gray-50 p-4 text-sm text-gray-600">
-              <p><span className="font-semibold text-gray-800">Endereço atual:</span> {formatOrderAddress(order)}</p>
-              <p className="mt-1"><span className="font-semibold text-gray-800">Pedido feito em:</span> {formatDate(order.created_at)}</p>
-            </div>
-
-            {customerError && (
-              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                {customerError}
-              </div>
-            )}
-
-            {customerSuccess && (
-              <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-                {customerSuccess}
-              </div>
-            )}
-
-            <div className="flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={() => void handleSaveCustomerData()}
-                disabled={savingCustomer}
-                className="btn-primary px-6 py-2.5 disabled:opacity-50"
-              >
-                {savingCustomer ? 'Salvando...' : 'Salvar dados do pedido'}
-              </button>
-              <a
-                href={makeWhatsAppLink(form.customer_phone || order.customer_phone_e164)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn-secondary px-6 py-2.5"
-              >
-                Testar WhatsApp
-              </a>
-            </div>
-          </div>
+          )}
         </div>
 
         {isB2B && (
@@ -717,7 +818,7 @@ export default function OrderDetailPage() {
           <div className="card p-5">
             <h2 className="mb-3 font-bold text-gray-800">Troco</h2>
             <p className="text-sm text-gray-700">
-              Cliente tem <span className="font-semibold">{formatEUR(changeInHand)}</span> em mãos e você deve levar{' '}
+              Cliente tem <span className="font-semibold">{formatEUR(changeInHand)}</span> em maos e voce deve levar{' '}
               <span className="font-semibold text-brand-700">{formatEUR(changeToBring)}</span> de troco.
             </p>
           </div>
@@ -735,7 +836,7 @@ export default function OrderDetailPage() {
           >
             {deleting ? 'Excluindo...' : 'Excluir este pedido permanentemente'}
           </button>
-          <p className="mt-2 text-center text-xs text-gray-400">Esta ação não pode ser desfeita.</p>
+          <p className="mt-2 text-center text-xs text-gray-400">Esta acao nao pode ser desfeita.</p>
         </div>
       </div>
     </div>
