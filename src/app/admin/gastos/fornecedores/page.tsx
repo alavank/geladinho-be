@@ -92,7 +92,7 @@ export default function FornecedoresPage() {
               <div>
                 <label className="label">Endereço</label>
                 <AddressAutocomplete
-                  className="input-field"
+                  className="w-full"
                   placeholder="Rua, número, cidade"
                   value={form.address}
                   onChange={(v) => setForm({ ...form, address: v })}

@@ -362,7 +362,8 @@ export default function RevendaPage() {
                     <div>
                       <label className="label">Rue, Avenue, Chaussée... *</label>
                       <AddressAutocomplete
-                        className={`input-field ${errClass('addressStreet')}`}
+                        className="w-full"
+                        invalid={!!errors.addressStreet}
                         placeholder="Ex: Rue de la Loi"
                         value={formData.addressStreet}
                         onChange={(v) => setField('addressStreet', v)}

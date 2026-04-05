@@ -7,7 +7,10 @@ export async function geocodeAddress(
   city: string,
   country: string = 'Belgium'
 ): Promise<{ lat: number; lng: number } | null> {
-  const apiKey = process.env.GOOGLE_PLACES_API_KEY;
+  const apiKey =
+    process.env.GOOGLE_PLACES_API_KEY ||
+    process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY ||
+    process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY;
   if (!apiKey) return null;
 
   const address = `${street} ${number}, ${postalCode} ${city}, ${country}`;

@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdminAuthenticated, unauthorizedResponse } from '@/lib/auth';
 
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+const GEMINI_API_URL =
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
 export async function POST(request: NextRequest) {
   if (!isAdminAuthenticated(request)) return unauthorizedResponse();
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    return NextResponse.json({ error: 'GEMINI_API_KEY não configurada' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'GEMINI_API_KEY não configurada no ambiente do servidor' },
+      { status: 500 }
+    );
   }
 
   const formData = await request.formData();
@@ -18,20 +22,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Nenhuma imagem enviada' }, { status: 400 });
   }
 
-  // Convert file to base64
   const bytes = await file.arrayBuffer();
   const base64 = Buffer.from(bytes).toString('base64');
   const mimeType = file.type || 'image/jpeg';
 
-  // Call Gemini API
   const geminiResponse = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      contents: [{
-        parts: [
-          {
-            text: `Analyze this receipt/invoice image and extract the following information in JSON format.
+      contents: [
+        {
+          parts: [
+            {
+              text: `Analyze this receipt/invoice image and extract the following information in JSON format.
 Return ONLY valid JSON, no markdown, no code blocks, no extra text.
 
 {
@@ -49,20 +52,21 @@ Important:
 - If you can't read a value, use null
 - Items array can be empty if items are not readable
 - Always try to extract the total amount even if individual items are hard to read
-- Date format must be YYYY-MM-DD`
-          },
-          {
-            inline_data: {
-              mime_type: mimeType,
-              data: base64,
-            }
-          }
-        ]
-      }],
+- Date format must be YYYY-MM-DD`,
+            },
+            {
+              inline_data: {
+                mime_type: mimeType,
+                data: base64,
+              },
+            },
+          ],
+        },
+      ],
       generationConfig: {
         temperature: 0.1,
         maxOutputTokens: 2048,
-      }
+      },
     }),
   });
 
@@ -73,24 +77,23 @@ Important:
   }
 
   const geminiData = await geminiResponse.json();
-
-  // Extract text from Gemini response
   const responseText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
-  // Parse JSON from response (clean markdown code blocks if present)
   let ocrResult;
   try {
     const cleaned = responseText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
     ocrResult = JSON.parse(cleaned);
   } catch {
     console.error('Failed to parse Gemini response:', responseText);
-    return NextResponse.json({
-      error: 'Não foi possível interpretar a nota fiscal',
-      raw_text: responseText,
-    }, { status: 422 });
+    return NextResponse.json(
+      {
+        error: 'Não foi possível interpretar a nota fiscal',
+        raw_text: responseText,
+      },
+      { status: 422 }
+    );
   }
 
-  // Convert total_amount to cents
   const totalCents = ocrResult.total_amount
     ? Math.round(ocrResult.total_amount * 100)
     : null;

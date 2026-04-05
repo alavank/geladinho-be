@@ -71,7 +71,8 @@ export default function OrderForm({ initialData, onSubmit, cartItems, activeFlav
             <div>
               <label className="label">Rue, Avenue, Chaussée... *</label>
               <AddressAutocomplete
-                className={`input-field ${err('addressStreet')}`}
+                className="w-full"
+                invalid={!!errors.addressStreet}
                 placeholder="Ex: Rue de la Loi"
                 value={form.addressStreet}
                 onChange={(v) => set('addressStreet', v)}
