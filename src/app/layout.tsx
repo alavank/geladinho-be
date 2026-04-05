@@ -8,12 +8,10 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const mapsKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || '';
-
   return (
     <html lang="pt-BR">
       <body className="min-h-screen" style={{ backgroundColor: '#FAFAFA' }}>
-        {mapsKey && <GoogleMapsLoader apiKey={mapsKey} />}
+        <GoogleMapsLoader />
         {children}
       </body>
     </html>

@@ -22,6 +22,7 @@ export default function NovoGastoPage() {
   const [scanPreview, setScanPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [scanError, setScanError] = useState('');
   const [scanSuccess, setScanSuccess] = useState(false);
 
   const [form, setForm] = useState({
@@ -49,7 +50,7 @@ export default function NovoGastoPage() {
 
   const handleScan = async (file: File) => {
     setScanning(true);
-    setError('');
+    setScanError('');
     setScanSuccess(false);
 
     // Show preview
@@ -65,7 +66,9 @@ export default function NovoGastoPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || 'Erro ao processar imagem');
+        setScanError(data.error === 'GEMINI_API_KEY não configurada'
+          ? 'Chave do Gemini não configurada. Adicione GEMINI_API_KEY no .env.local e reinicie o servidor.'
+          : data.error || 'Erro ao processar imagem');
         setScanning(false);
         return;
       }
@@ -95,7 +98,7 @@ export default function NovoGastoPage() {
 
       setScanSuccess(true);
     } catch {
-      setError('Erro de conexão ao processar imagem');
+      setScanError('Erro de conexão ao processar imagem');
     }
 
     setScanning(false);
@@ -166,6 +169,12 @@ export default function NovoGastoPage() {
             <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-xl text-center">
               <div className="animate-pulse text-blue-600 font-semibold">Analisando nota fiscal com IA...</div>
               <p className="text-xs text-blue-500 mt-1">Isso pode levar alguns segundos</p>
+            </div>
+          )}
+
+          {scanError && (
+            <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl">
+              <p className="text-red-700 font-semibold">⚠️ {scanError}</p>
             </div>
           )}
 
