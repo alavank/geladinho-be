@@ -46,14 +46,29 @@ function buildGoogleMapsUrl(origin: string, orders: Order[]): string {
   return url;
 }
 
-function buildWazeUrls(orders: Order[]): { label: string; url: string }[] {
-  return orders.map((o) => {
-    const addr = getOrderAddress(o);
-    const url = o.latitude && o.longitude
-      ? `https://waze.com/ul?ll=${o.latitude},${o.longitude}&navigate=yes`
-      : `https://waze.com/ul?q=${encodeURIComponent(addr)}&navigate=yes`;
-    return { label: getOrderDisplayName(o), url };
-  });
+function buildWazeUrls(origin: string, orders: Order[]): { from: string; to: string; url: string }[] {
+  const stops: { name: string; ll: string | null; addr: string }[] = [
+    { name: 'Ponto de partida', ll: null, addr: origin },
+    ...orders.map((o) => ({
+      name: getOrderDisplayName(o),
+      ll: o.latitude && o.longitude ? `${o.latitude},${o.longitude}` : null,
+      addr: getOrderAddress(o),
+    })),
+  ];
+
+  const links: { from: string; to: string; url: string }[] = [];
+  for (let i = 0; i < stops.length - 1; i++) {
+    const dest = stops[i + 1];
+    const url = dest.ll
+      ? `https://waze.com/ul?ll=${dest.ll}&navigate=yes`
+      : `https://waze.com/ul?q=${encodeURIComponent(dest.addr)}&navigate=yes`;
+    links.push({
+      from: stops[i].name,
+      to: dest.name,
+      url,
+    });
+  }
+  return links;
 }
 
 const B2C_COLOR = '#C41230';
@@ -73,7 +88,7 @@ export default function RotasPage() {
 
   // Generated links
   const [generatedGoogleUrl, setGeneratedGoogleUrl] = useState('');
-  const [generatedWazeLinks, setGeneratedWazeLinks] = useState<{ label: string; url: string }[]>([]);
+  const [generatedWazeLinks, setGeneratedWazeLinks] = useState<{ from: string; to: string; url: string }[]>([]);
 
   // Drag-and-drop
   const [dragIndex, setDragIndex] = useState<number | null>(null);
@@ -180,7 +195,7 @@ export default function RotasPage() {
   };
 
   const handleGenerateWaze = () => {
-    setGeneratedWazeLinks(buildWazeUrls(selectedOrders));
+    setGeneratedWazeLinks(buildWazeUrls(origin, selectedOrders));
   };
 
   // Origin editing
@@ -367,18 +382,20 @@ export default function RotasPage() {
                 {/* Generated Waze links */}
                 {generatedWazeLinks.length > 0 && (
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                    <p className="text-xs font-semibold text-blue-700 uppercase mb-2">🚗 Links Waze (por parada)</p>
-                    <div className="space-y-1">
+                    <p className="text-xs font-semibold text-blue-700 uppercase mb-2">🚗 Rotas Waze (trecho a trecho)</p>
+                    <div className="space-y-2">
                       {generatedWazeLinks.map((link, i) => (
-                        <div key={i} className="flex items-center gap-2">
+                        <a key={i} href={link.url} target="_blank" rel="noopener noreferrer"
+                          className="flex items-center gap-2 p-2 rounded-lg bg-white border border-blue-100 hover:border-blue-300 hover:bg-blue-50 transition-colors">
                           <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center shrink-0">
                             {i + 1}
                           </span>
-                          <a href={link.url} target="_blank" rel="noopener noreferrer"
-                            className="text-sm text-blue-700 hover:text-blue-900 font-medium truncate hover:underline">
-                            {link.label}
-                          </a>
-                        </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-gray-500 truncate">{link.from}</p>
+                            <p className="text-sm text-blue-700 font-medium truncate">→ {link.to}</p>
+                          </div>
+                          <span className="text-blue-500 text-xs shrink-0">Abrir</span>
+                        </a>
                       ))}
                     </div>
                   </div>
