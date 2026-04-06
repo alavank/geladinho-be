@@ -8,7 +8,8 @@
       "Bash(curl -s -b \"admin_session=authenticated\" http://localhost:3000/api/admin/expenses)"
     ],
     "additionalDirectories": [
-      "c:\\projetos\\geladinho-be\\src\\app\\api\\admin\\production"
+      "c:\\projetos\\geladinho-be\\src\\app\\api\\admin\\production",
+      "c:\\projetos\\geladinho-be\\src\\app\\api\\admin\\routes"
     ]
   }
 }

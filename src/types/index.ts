@@ -196,3 +196,18 @@ export interface StockLevel {
   adjusted: number;
   current: number;
 }
+
+// ============================================================
+// Route Module Types
+// ============================================================
+
+export interface SavedRoute {
+  id: string;
+  created_at: string;
+  name: string;
+  origin: string;
+  order_ids: string[];
+  google_maps_url: string | null;
+  waze_links: { from: string; to: string; url: string }[] | null;
+  notes: string | null;
+}
