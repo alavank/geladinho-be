@@ -8,7 +8,7 @@ import { Customer, CustomerType } from '@/types';
 import { getCustomerDisplayName } from '@/lib/customers';
 
 const EMPTY_FORM = {
-  type: 'b2c' as CustomerType,
+  type: 'b2b' as CustomerType,
   name: '',
   establishment_name: '',
   phone: '',
@@ -159,8 +159,8 @@ export default function ClientesPage() {
                 <label className="label">Tipo de cliente</label>
                 <div className="flex gap-3">
                   {[
-                    { key: 'b2c' as CustomerType, label: '🛒 Cliente final' },
                     { key: 'b2b' as CustomerType, label: '🏪 Revenda' },
+                    { key: 'b2c' as CustomerType, label: '🛒 Cliente final' },
                   ].map((option) => (
                     <button
                       key={option.key}
