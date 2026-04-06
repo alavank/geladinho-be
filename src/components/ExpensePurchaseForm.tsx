@@ -503,7 +503,7 @@ export default function ExpensePurchaseForm({
           <label className="label">Local da compra</label>
           <AddressAutocomplete
             className="w-full"
-            placeholder="Ex: Rue de la Vérité 45A, 1070 Anderlecht"
+            placeholder="Ex: Rue de la Loi, 16 - 1000 - Bruxelles"
             value={locationAddress}
             onChange={(nextValue) => setLocationAddress(nextValue)}
             onAddressSelected={(address) => setLocationAddress(address.fullAddress)}

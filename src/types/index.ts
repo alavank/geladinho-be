@@ -153,3 +153,46 @@ export interface Order {
   status: OrderStatus;
   order_items?: OrderItem[];
 }
+
+// ============================================================
+// Stock & Production Module Types
+// ============================================================
+
+export interface ProductionBatch {
+  id: string;
+  created_at: string;
+  date: string;
+  flavor_id: string;
+  flavor_name: string;
+  quantity: number;
+  notes: string | null;
+}
+
+export type StockAdjustmentReason = 'perda' | 'doacao' | 'correcao' | 'outro';
+
+export const STOCK_ADJUSTMENT_LABELS: Record<StockAdjustmentReason, string> = {
+  perda: 'Perda',
+  doacao: 'Doação',
+  correcao: 'Correção de contagem',
+  outro: 'Outro',
+};
+
+export interface StockAdjustment {
+  id: string;
+  created_at: string;
+  date: string;
+  flavor_id: string;
+  flavor_name: string;
+  quantity: number;
+  reason: StockAdjustmentReason;
+  notes: string | null;
+}
+
+export interface StockLevel {
+  flavorId: string;
+  flavorName: string;
+  produced: number;
+  sold: number;
+  adjusted: number;
+  current: number;
+}

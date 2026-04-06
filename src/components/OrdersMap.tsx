@@ -8,6 +8,7 @@ interface MapMarker {
   title: string;
   info: string;
   color: string;
+  label?: string;
 }
 
 interface Props {
@@ -15,11 +16,14 @@ interface Props {
   height?: string;
 }
 
-// Simple colored marker SVG
-function markerIcon(color: string) {
+// Colored marker SVG with optional label
+function markerIcon(color: string, label?: string) {
+  const inner = label
+    ? `<text x="12" y="16" text-anchor="middle" fill="white" font-size="11" font-weight="bold" font-family="Arial,sans-serif">${label}</text>`
+    : `<circle cx="12" cy="12" r="5" fill="white"/>`;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="36" viewBox="0 0 24 36">
     <path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="${color}"/>
-    <circle cx="12" cy="12" r="5" fill="white"/>
+    ${inner}
   </svg>`;
   return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 }
@@ -71,7 +75,7 @@ export default function OrdersMap({ markers, height = '400px' }: Props) {
         map: mapInstanceRef.current,
         title: m.title,
         icon: {
-          url: markerIcon(m.color),
+          url: markerIcon(m.color, m.label),
           scaledSize: { width: 24, height: 36 },
         },
       });

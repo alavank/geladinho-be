@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Expense, ExpenseCategory } from '@/types';
+import { Expense, ExpenseCategory, Supplier } from '@/types';
 import { formatEUR } from '@/lib/flavors';
 
 type Period = '7d' | '30d' | '90d' | 'all';
@@ -27,19 +27,25 @@ export default function GastosPage() {
   const router = useRouter();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
-  const [period, setPeriod] = useState<Period>('30d');
+  const [period, setPeriod] = useState<Period>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [linkingExpense, setLinkingExpense] = useState<Expense | null>(null);
+  const [selectedSupplierId, setSelectedSupplierId] = useState('');
+  const [bindingId, setBindingId] = useState<string | null>(null);
 
   const fetchData = async () => {
-    const [resExp, resCat] = await Promise.all([
+    const [resExp, resCat, resSup] = await Promise.all([
       fetch('/api/admin/expenses'),
       fetch('/api/admin/expense-categories'),
+      fetch('/api/admin/suppliers'),
     ]);
     if (resExp.status === 401) { router.push('/admin/login'); return; }
     setExpenses(await resExp.json());
     setCategories(await resCat.json());
+    setSuppliers(await resSup.json());
     setLoading(false);
   };
 
@@ -85,6 +91,36 @@ export default function GastosPage() {
     else alert('Erro ao excluir');
     setDeletingId(null);
   };
+
+  const openLinkSupplier = (expense: Expense) => {
+    setLinkingExpense(expense);
+    setSelectedSupplierId(expense.supplier_id || '');
+  };
+
+  const handleLinkSupplier = async () => {
+    if (!linkingExpense || !selectedSupplierId) return;
+    const supplier = suppliers.find((s) => s.id === selectedSupplierId);
+    if (!supplier) return;
+    if (!confirm(`Vincular fornecedor "${supplier.name}" a esta compra?`)) return;
+
+    setBindingId(linkingExpense.id);
+    const res = await fetch(`/api/admin/expenses/${linkingExpense.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ supplier_id: selectedSupplierId }),
+    });
+
+    if (res.ok) {
+      const updated = await res.json();
+      setExpenses((prev) => prev.map((e) => e.id === linkingExpense.id ? { ...e, ...updated } : e));
+      setLinkingExpense(null);
+    } else {
+      alert('Erro ao vincular fornecedor');
+    }
+    setBindingId(null);
+  };
+
+  const activeSuppliers = useMemo(() => suppliers.filter((s) => s.active), [suppliers]);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center text-gray-400">⏳ Carregando...</div>;
 
@@ -187,14 +223,23 @@ export default function GastosPage() {
                           {expense.invoice_number ? ` · Nota ${expense.invoice_number}` : ''}
                         </p>
                       </td>
-                      <td className="px-4 py-3 text-gray-600 text-xs">{expense.supplier?.name || '—'}</td>
+                      <td className="px-4 py-3 text-xs">
+                        {expense.supplier ? (
+                          <span className="text-gray-600">{expense.supplier.name}</span>
+                        ) : (
+                          <button onClick={() => openLinkSupplier(expense)}
+                            className="text-amber-600 hover:text-amber-800 font-semibold hover:bg-amber-50 px-1.5 py-0.5 rounded transition-colors">
+                            Vincular
+                          </button>
+                        )}
+                      </td>
                       <td className="px-4 py-3 max-w-[220px] text-xs text-gray-600">
                         <span className="block truncate">{expense.location_address || '—'}</span>
                       </td>
                       <td className="px-4 py-3 font-bold text-orange-600 whitespace-nowrap">{formatEUR(expense.amount_eur_cents)}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
-                          <Link href={`/admin/gastos/${expense.id}`} className="text-blue-600 hover:text-blue-800 font-semibold text-xs">Editar</Link>
+                          <Link href={`/admin/gastos/${expense.id}`} className="text-blue-600 hover:text-blue-800 font-semibold text-xs">Ver</Link>
                           <button onClick={() => handleDelete(expense.id)} disabled={deletingId === expense.id}
                             className="text-red-400 hover:text-red-600 hover:bg-red-50 p-1 rounded-lg transition-colors disabled:opacity-40" title="Excluir">
                             {deletingId === expense.id ? '⏳' : '🗑️'}
@@ -209,6 +254,58 @@ export default function GastosPage() {
           </div>
         )}
       </div>
+
+      {/* Supplier linking modal */}
+      {linkingExpense && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900">🏬 Vincular Fornecedor</h3>
+              <button onClick={() => setLinkingExpense(null)} className="text-gray-400 hover:text-gray-600 text-xl">×</button>
+            </div>
+
+            <p className="text-sm text-gray-600 mb-4">
+              Vincular um fornecedor cadastrado à compra <span className="font-semibold text-gray-800">&ldquo;{linkingExpense.description}&rdquo;</span>.
+            </p>
+
+            {linkingExpense.ocr_raw_data?.supplier_name && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+                <p className="text-xs font-semibold text-amber-700 uppercase mb-1">Detectado pelo OCR</p>
+                <p className="text-sm font-medium text-amber-900">{linkingExpense.ocr_raw_data.supplier_name}</p>
+                {linkingExpense.ocr_raw_data.supplier_address && (
+                  <p className="text-xs text-amber-700 mt-0.5">{linkingExpense.ocr_raw_data.supplier_address}</p>
+                )}
+              </div>
+            )}
+
+            <div className="mb-4">
+              <label className="label">Fornecedor *</label>
+              <select
+                className="input-field"
+                value={selectedSupplierId}
+                onChange={(e) => setSelectedSupplierId(e.target.value)}
+              >
+                <option value="">Selecione...</option>
+                {activeSuppliers.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex gap-3">
+              <button onClick={() => setLinkingExpense(null)}
+                className="flex-1 px-4 py-2 rounded-xl border border-gray-200 text-gray-600 font-semibold hover:bg-gray-50 transition-colors">
+                Cancelar
+              </button>
+              <button onClick={handleLinkSupplier}
+                disabled={!selectedSupplierId || bindingId === linkingExpense.id}
+                className="flex-1 btn-primary py-2 disabled:opacity-40">
+                {bindingId === linkingExpense.id ? 'Vinculando...' : 'Confirmar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

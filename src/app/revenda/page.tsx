@@ -373,7 +373,7 @@ export default function RevendaPage() {
                       <AddressAutocomplete
                         className="w-full"
                         invalid={!!errors.addressFull}
-                        placeholder="Ex: Rue de la Vérité 45A, 1070 Anderlecht"
+                        placeholder="Ex: Rue de la Loi, 16 - 1000 - Bruxelles"
                         value={formData.addressFull}
                         onChange={(nextValue, meta) => {
                           setFormData((prev) => ({

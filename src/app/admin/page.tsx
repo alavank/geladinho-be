@@ -40,7 +40,6 @@ export default function AdminPage() {
   const [statusConfigs, setStatusConfigs] = useState<OrderStatusConfig[]>(DEFAULT_ORDER_STATUS_CONFIGS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [channelFilter, setChannelFilter] = useState<ChannelFilter>('all');
   const [linkingOrder, setLinkingOrder] = useState<Order | null>(null);
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
@@ -97,18 +96,6 @@ export default function AdminPage() {
     router.push('/admin/login');
   };
 
-  const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Excluir o pedido de ${name}? Esta acao nao pode ser desfeita.`)) return;
-
-    setDeletingId(id);
-    const response = await fetch(`/api/admin/orders/${id}`, { method: 'DELETE' });
-    if (response.ok) {
-      setOrders((prev) => prev.filter((order) => order.id !== id));
-    } else {
-      alert('Erro ao excluir pedido. Tente novamente.');
-    }
-    setDeletingId(null);
-  };
 
   const handleOpenBindingModal = (order: Order) => {
     setLinkingOrder(order);
@@ -177,6 +164,18 @@ export default function AdminPage() {
       description: 'Acesse o financeiro com notas, compras completas e leitura automatica.',
       accent: 'border-emerald-200 bg-emerald-50 text-emerald-700',
     },
+    {
+      href: '/admin/estoque',
+      title: 'Estoque & Produção',
+      description: 'Registre produção, acompanhe estoque por sabor e faça ajustes manuais.',
+      accent: 'border-orange-200 bg-orange-50 text-orange-700',
+    },
+    {
+      href: '/admin/rotas',
+      title: 'Rotas de Entrega',
+      description: 'Monte rotas com os pedidos do dia e navegue com Google Maps ou Waze.',
+      accent: 'border-cyan-200 bg-cyan-50 text-cyan-700',
+    },
   ];
 
   const handleConfirmBinding = async () => {
@@ -241,6 +240,12 @@ export default function AdminPage() {
           </Link>
           <Link href="/admin/gastos" className="rounded-lg border border-orange-200 px-3 py-1.5 text-sm font-medium text-orange-700 hover:bg-orange-50 hover:text-orange-900">
             Gastos
+          </Link>
+          <Link href="/admin/estoque" className="rounded-lg border border-emerald-200 px-3 py-1.5 text-sm font-medium text-emerald-700 hover:bg-emerald-50 hover:text-emerald-900">
+            Estoque
+          </Link>
+          <Link href="/admin/rotas" className="rounded-lg border border-cyan-200 px-3 py-1.5 text-sm font-medium text-cyan-700 hover:bg-cyan-50 hover:text-cyan-900">
+            Rotas
           </Link>
           <Link href="/admin/relatorios" className="rounded-lg border border-purple-200 px-3 py-1.5 text-sm font-medium text-purple-700 hover:bg-purple-50 hover:text-purple-900">
             Relatorios
@@ -391,14 +396,6 @@ export default function AdminPage() {
                           <Link href={`/admin/pedidos/${order.id}`} className="whitespace-nowrap text-xs font-semibold text-brand-600 hover:text-brand-800">
                             Ver →
                           </Link>
-                          <button
-                            onClick={() => void handleDelete(order.id, order.establishment_name || order.customer_name)}
-                            disabled={deletingId === order.id}
-                            className="rounded-lg p-1 text-red-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
-                            title="Excluir"
-                          >
-                            {deletingId === order.id ? '...' : 'Excluir'}
-                          </button>
                         </div>
                       </td>
                     </tr>

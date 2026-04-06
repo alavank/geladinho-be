@@ -93,7 +93,7 @@ export default function FornecedoresPage() {
                 <label className="label">Endereço completo</label>
                 <AddressAutocomplete
                   className="w-full"
-                  placeholder="Ex: Rue de la Vérité 45A, 1070 Anderlecht"
+                  placeholder="Ex: Rue de la Loi, 16 - 1000 - Bruxelles"
                   value={form.address}
                   onChange={(v) => setForm({ ...form, address: v })}
                   onAddressSelected={(addr) => setForm({ ...form, address: addr.fullAddress })}

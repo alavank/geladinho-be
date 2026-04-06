@@ -204,19 +204,6 @@ export default function RelatoriosPage() {
     { name: 'B2B — Revenda', value: revenue(b2bOrders) },
   ].filter((d) => d.value > 0);
 
-  // Map markers — deliveries (filtered by period + channel)
-  const deliveryMarkers = useMemo(() => {
-    return filtered
-      .filter((o) => o.latitude && o.longitude)
-      .map((o) => ({
-        lat: o.latitude!,
-        lng: o.longitude!,
-        title: o.establishment_name || o.customer_name,
-        info: `${formatEUR(o.total_price_eur_cents + (o.freight_eur_cents || 0))} · ${o.total_units} un. · ${o.address_city}`,
-        color: o.channel === 'b2b' ? B2B_COLOR : B2C_COLOR,
-      }));
-  }, [filtered]);
-
   // Map markers — all customers (unique by phone, no period filter)
   const [customerMapChannel, setCustomerMapChannel] = useState<'all' | 'b2c' | 'b2b'>('all');
   const customerMarkers = useMemo(() => {
@@ -239,6 +226,7 @@ export default function RelatoriosPage() {
       title: o.establishment_name || o.customer_name,
       info: `${o.address_city} · ${o.channel === 'b2b' ? 'B2B' : 'B2C'}`,
       color: o.channel === 'b2b' ? B2B_COLOR : B2C_COLOR,
+      label: o.channel === 'b2b' ? 'B' : 'C',
     }));
   }, [orders, customerMapChannel]);
 
@@ -502,21 +490,6 @@ export default function RelatoriosPage() {
             </div>
           </div>
         )}
-
-        {/* Map — Deliveries by period */}
-        <div className="card p-6">
-          <h2 className="font-bold text-gray-900 mb-2">🗺️ Mapa de Entregas</h2>
-          <p className="text-sm text-gray-500 mb-4">Pedidos no período e canal selecionados ({deliveryMarkers.length} com localização)</p>
-          {deliveryMarkers.length > 0 ? (
-            <OrdersMap markers={deliveryMarkers} height="400px" />
-          ) : (
-            <div className="rounded-xl bg-gray-50 border border-gray-200 p-8 text-center text-gray-400">
-              <p className="text-3xl mb-2">🗺️</p>
-              <p className="text-sm">Nenhum pedido com coordenadas no período selecionado.</p>
-              <p className="text-xs mt-1">Pedidos novos terão localização salva automaticamente.</p>
-            </div>
-          )}
-        </div>
 
         {/* Map — All customers */}
         <div className="card p-6">
