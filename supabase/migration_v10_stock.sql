@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS production_batches (
 );
 
 ALTER TABLE production_batches ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "production_batches_service" ON production_batches;
 CREATE POLICY "production_batches_service" ON production_batches FOR ALL USING (true) WITH CHECK (true);
 
 -- Stock adjustments: manual corrections (loss, donation, count correction)
@@ -29,4 +30,5 @@ CREATE TABLE IF NOT EXISTS stock_adjustments (
 );
 
 ALTER TABLE stock_adjustments ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "stock_adjustments_service" ON stock_adjustments;
 CREATE POLICY "stock_adjustments_service" ON stock_adjustments FOR ALL USING (true) WITH CHECK (true);

@@ -5,7 +5,7 @@ import { FormData } from '@/app/page';
 import { CartItem } from '@/types';
 import { hasStructuredAddress } from '@/lib/address';
 import { formatEUR } from '@/lib/flavors';
-import { isValidBelgianPhone } from '@/lib/phone';
+import { isValidBelgianPhone, normalizeBelgianPhone } from '@/lib/phone';
 import AddressAutocomplete from './AddressAutocomplete';
 
 interface ActiveFlavor { id: string; name: string; priceEurCents: number; index: number }
@@ -71,7 +71,7 @@ export default function OrderForm({
   return (
     <div>
       <h2 className="text-2xl font-bold text-gray-900 mb-6">📋 Seus Dados</h2>
-      <form onSubmit={(e) => { e.preventDefault(); if (validate()) onSubmit(form); }} noValidate>
+      <form onSubmit={(e) => { e.preventDefault(); if (validate()) onSubmit({ ...form, customerPhone: normalizeBelgianPhone(form.customerPhone) || form.customerPhone }); }} noValidate>
         <div className="card p-5 mb-5">
           <h3 className="font-bold text-gray-800 mb-4 text-lg">👤 Informações Pessoais</h3>
           <div className="space-y-4">
@@ -89,13 +89,14 @@ export default function OrderForm({
               <label className="label">Telefone (Bélgica) * <span className="text-brand-600 font-normal text-xs">📱 WhatsApp</span></label>
               <input
                 className={`input-field ${err('customerPhone')}`}
-                placeholder="+32 470 12 34 56"
+                placeholder="0470 12 34 56"
                 value={form.customerPhone}
                 onChange={(e) => set('customerPhone', e.target.value)}
+                onFocus={() => { if (!form.customerPhone) set('customerPhone', '+32'); }}
                 type="tel"
               />
               {errors.customerPhone && <p className="text-red-500 text-xs mt-1">{errors.customerPhone}</p>}
-              <p className="text-xs text-gray-400 mt-1">Formatos aceitos: +32..., 0032..., 04XX...</p>
+              <p className="text-xs text-gray-400 mt-1">Formatos aceitos: +32 470..., 0470..., 0032 470...</p>
             </div>
           </div>
         </div>

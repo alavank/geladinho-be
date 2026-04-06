@@ -6,6 +6,7 @@ import { SystemSettings, FlavorConfig } from '@/lib/settings';
 import { CartItem } from '@/types';
 import { hasStructuredAddress } from '@/lib/address';
 import { formatEUR } from '@/lib/flavors';
+import { isValidBelgianPhone, normalizeBelgianPhone } from '@/lib/phone';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -147,8 +148,11 @@ export default function RevendaPage() {
   const validateForm = (): boolean => {
     const e: Partial<Record<keyof B2BFormData, string>> = {};
     if (!formData.establishmentName.trim()) e.establishmentName = 'Nome do estabelecimento obrigatório';
-    if (!formData.customerName.trim()) e.customerName = 'Nome do contato obrigatório';
-    if (!formData.customerPhone.trim()) e.customerPhone = 'Telefone obrigatório';
+    if (!formData.customerPhone.trim()) {
+      e.customerPhone = 'Telefone obrigatório';
+    } else if (!isValidBelgianPhone(formData.customerPhone)) {
+      e.customerPhone = 'Número belga inválido (ex: +32 470 12 34 56 ou 0470 12 34 56)';
+    }
     if (!formData.addressFull.trim()) {
       e.addressFull = 'Endereço obrigatório';
     } else if (!hasStructuredAddress({
@@ -178,7 +182,7 @@ export default function RevendaPage() {
           channel: 'b2b',
           establishmentName: formData.establishmentName,
           customerName: formData.customerName,
-          customerPhone: formData.customerPhone,
+          customerPhone: normalizeBelgianPhone(formData.customerPhone) || formData.customerPhone,
           customerEmail: formData.customerEmail || undefined,
           addressStreet: formData.addressStreet,
           addressNumber: formData.addressNumber,
@@ -346,15 +350,18 @@ export default function RevendaPage() {
                       {errors.establishmentName && <p className="text-red-500 text-xs mt-1">{errors.establishmentName}</p>}
                     </div>
                     <div>
-                      <label className="label">Nome do Contato Responsável *</label>
+                      <label className="label">Nome do Contato Responsável</label>
                       <input className={`input-field ${errClass('customerName')}`} placeholder="Ex: João Silva"
                         value={formData.customerName} onChange={(e) => setField('customerName', e.target.value)} />
                       {errors.customerName && <p className="text-red-500 text-xs mt-1">{errors.customerName}</p>}
                     </div>
                     <div>
                       <label className="label">Telefone * <span className="text-blue-600 font-normal text-xs">📱 WhatsApp</span></label>
-                      <input className={`input-field ${errClass('customerPhone')}`} placeholder="+32 470 12 34 56"
-                        value={formData.customerPhone} onChange={(e) => setField('customerPhone', e.target.value)} type="tel" />
+                      <input className={`input-field ${errClass('customerPhone')}`} placeholder="0470 12 34 56"
+                        value={formData.customerPhone} onChange={(e) => setField('customerPhone', e.target.value)}
+                        onFocus={() => { if (!formData.customerPhone) setField('customerPhone', '+32'); }}
+                        type="tel" />
+                      <p className="text-xs text-gray-400 mt-1">Formatos aceitos: +32 470..., 0470..., 0032 470...</p>
                       {errors.customerPhone && <p className="text-red-500 text-xs mt-1">{errors.customerPhone}</p>}
                     </div>
                     <div>

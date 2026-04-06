@@ -29,6 +29,8 @@ export default function ParametrosPage() {
   const [editStatusLabel, setEditStatusLabel] = useState('');
   const [editStatusColor, setEditStatusColor] = useState('');
   const [editStatusSortOrder, setEditStatusSortOrder] = useState(0);
+  const [newStatusLabel, setNewStatusLabel] = useState('');
+  const [newStatusColor, setNewStatusColor] = useState('#6B7280');
 
   const [error, setError] = useState('');
 
@@ -158,6 +160,53 @@ export default function ParametrosPage() {
 
     const data = await response.json();
     setError(data.error || 'Erro ao atualizar status');
+  };
+
+  const PROTECTED_STATUS_KEYS = ['novo', 'em_preparo', 'em_rota', 'entregue', 'cancelado'];
+
+  const handleAddStatus = async () => {
+    if (!newStatusLabel.trim()) {
+      setError('Rótulo é obrigatório');
+      return;
+    }
+
+    // Generate key from label
+    const key = newStatusLabel.trim().toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+
+    const response = await fetch('/api/admin/order-statuses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key, label: newStatusLabel.trim(), color: newStatusColor }),
+    });
+
+    if (response.ok) {
+      setNewStatusLabel('');
+      setNewStatusColor('#6B7280');
+      setError('');
+      void fetchData();
+      return;
+    }
+
+    const data = await response.json();
+    setError(data.error || 'Erro ao criar status');
+  };
+
+  const handleDeleteStatus = async (config: OrderStatusConfig) => {
+    if (!confirm(`Excluir o status "${config.label}"?`)) return;
+
+    const response = await fetch(`/api/admin/order-statuses/${config.key}`, {
+      method: 'DELETE',
+    });
+
+    if (response.ok) {
+      void fetchData();
+      return;
+    }
+
+    const data = await response.json();
+    alert(data.error || 'Erro ao excluir');
   };
 
   const handleToggleStatus = async (config: OrderStatusConfig) => {
@@ -334,52 +383,116 @@ export default function ParametrosPage() {
         )}
 
         {tab === 'order-statuses' && (
-          <div className="card p-6">
-            <h2 className="mb-4 text-lg font-bold text-gray-900">Status de Pedido</h2>
-            <div className="space-y-2">
-              {statusConfigs.map((config) => (
-                <div key={config.key}>
-                  {editingStatusKey === config.key ? (
-                    <div className="space-y-3 rounded-xl border-2 border-brand-400 bg-brand-50 p-4">
-                      <div>
-                        <label className="label">Rótulo</label>
-                        <input
-                          type="text"
-                          value={editStatusLabel}
-                          onChange={(event) => setEditStatusLabel(event.target.value)}
-                          className="input-field py-2 text-sm font-bold"
-                        />
-                      </div>
-                      <div className="grid gap-3 md:grid-cols-2">
-                        <div>
-                          <label className="label">Cor</label>
-                          <input type="color" value={editStatusColor} onChange={(event) => setEditStatusColor(event.target.value)} className="h-11 w-full rounded-xl border border-gray-200 bg-white p-1" />
-                        </div>
-                        <div>
-                          <label className="label">Ordem</label>
-                          <input type="number" value={editStatusSortOrder} onChange={(event) => setEditStatusSortOrder(Number(event.target.value) || 0)} className="input-field" />
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <button type="button" onClick={() => void handleUpdateStatus(config.key)} className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-bold text-white hover:bg-brand-700">Salvar</button>
-                        <button type="button" onClick={() => setEditingStatusKey(null)} className="rounded-lg bg-gray-200 px-4 py-2 text-sm font-bold text-gray-600 hover:bg-gray-300">Cancelar</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className={`flex items-center gap-3 rounded-xl border p-3 transition-all ${config.active ? 'border-gray-200 bg-white' : 'border-dashed border-gray-200 bg-gray-50'}`}>
-                      <input type="checkbox" checked={config.active} onChange={() => void handleToggleStatus(config)} className="h-4 w-4 cursor-pointer accent-brand-600" />
-                      <span className="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold" style={{ backgroundColor: `${config.color}20`, color: config.color }}>
-                        {config.label}
-                      </span>
-                      <span className="text-xs text-gray-400">chave: {config.key}</span>
-                      <span className="ml-auto text-xs text-gray-500">ordem {config.sort_order}</span>
-                      <button type="button" onClick={() => startEditStatus(config)} className="rounded-lg bg-blue-50 px-2 py-1.5 text-xs font-semibold text-blue-600 hover:bg-blue-100">✏️</button>
-                    </div>
-                  )}
+          <>
+            <div className="card p-6">
+              <h2 className="mb-4 text-lg font-bold text-gray-900">➕ Novo Status de Pedido</h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="label">Rótulo</label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    placeholder="Ex: Aguardando Pagamento"
+                    value={newStatusLabel}
+                    onChange={(event) => {
+                      setNewStatusLabel(event.target.value);
+                      setError('');
+                    }}
+                  />
+                  <p className="text-xs text-gray-400 mt-1">
+                    A chave será gerada automaticamente: <span className="font-mono font-semibold text-gray-600">{
+                      newStatusLabel.trim().toLowerCase()
+                        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                        .replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') || '...'
+                    }</span>
+                  </p>
                 </div>
-              ))}
+
+                <div>
+                  <label className="label">Cor</label>
+                  <div className="flex flex-wrap gap-2">
+                    {COLOR_OPTIONS.map((color) => (
+                      <button
+                        key={color}
+                        type="button"
+                        onClick={() => setNewStatusColor(color)}
+                        className={`h-8 w-8 rounded-full border-2 transition-all ${
+                          newStatusColor === color ? 'scale-110 border-gray-800 ring-2 ring-offset-2' : 'border-gray-200'
+                        }`}
+                        style={{ backgroundColor: color }}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <button type="button" onClick={handleAddStatus} className="btn-primary py-2.5 px-6">
+                  Cadastrar
+                </button>
+              </div>
             </div>
-          </div>
+
+            <div className="card p-6">
+              <h2 className="mb-4 text-lg font-bold text-gray-900">Status de Pedido ({statusConfigs.length})</h2>
+              <div className="space-y-2">
+                {statusConfigs.map((config) => (
+                  <div key={config.key}>
+                    {editingStatusKey === config.key ? (
+                      <div className="space-y-3 rounded-xl border-2 border-brand-400 bg-brand-50 p-4">
+                        <div>
+                          <label className="label">Rótulo</label>
+                          <input
+                            type="text"
+                            value={editStatusLabel}
+                            onChange={(event) => setEditStatusLabel(event.target.value)}
+                            className="input-field py-2 text-sm font-bold"
+                          />
+                        </div>
+                        <div className="grid gap-3 md:grid-cols-2">
+                          <div>
+                            <label className="label">Cor</label>
+                            <div className="flex flex-wrap gap-2">
+                              {COLOR_OPTIONS.map((color) => (
+                                <button
+                                  key={color}
+                                  type="button"
+                                  onClick={() => setEditStatusColor(color)}
+                                  className={`h-6 w-6 rounded-full border-2 ${
+                                    editStatusColor === color ? 'scale-110 border-gray-800' : 'border-gray-200'
+                                  }`}
+                                  style={{ backgroundColor: color }}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                          <div>
+                            <label className="label">Ordem</label>
+                            <input type="number" value={editStatusSortOrder} onChange={(event) => setEditStatusSortOrder(Number(event.target.value) || 0)} className="input-field" />
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button type="button" onClick={() => void handleUpdateStatus(config.key)} className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-bold text-white hover:bg-brand-700">Salvar</button>
+                          <button type="button" onClick={() => setEditingStatusKey(null)} className="rounded-lg bg-gray-200 px-4 py-2 text-sm font-bold text-gray-600 hover:bg-gray-300">Cancelar</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className={`flex items-center gap-3 rounded-xl border p-3 transition-all ${config.active ? 'border-gray-200 bg-white' : 'border-dashed border-gray-200 bg-gray-50'}`}>
+                        <input type="checkbox" checked={config.active} onChange={() => void handleToggleStatus(config)} className="h-4 w-4 cursor-pointer accent-brand-600" />
+                        <span className="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold" style={{ backgroundColor: `${config.color}20`, color: config.color }}>
+                          {config.label}
+                        </span>
+                        <span className="text-xs text-gray-400">chave: {config.key}</span>
+                        <span className="ml-auto text-xs text-gray-500">ordem {config.sort_order}</span>
+                        <button type="button" onClick={() => startEditStatus(config)} className="rounded-lg bg-blue-50 px-2 py-1.5 text-xs font-semibold text-blue-600 hover:bg-blue-100">✏️</button>
+                        {!PROTECTED_STATUS_KEYS.includes(config.key) && (
+                          <button type="button" onClick={() => void handleDeleteStatus(config)} className="rounded-lg bg-red-50 px-2 py-1.5 text-xs font-semibold text-red-500 hover:bg-red-100">🗑️</button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
         )}
       </div>
     </div>

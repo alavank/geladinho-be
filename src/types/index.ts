@@ -1,4 +1,4 @@
-export type OrderStatus = 'novo' | 'em_preparo' | 'em_rota' | 'entregue' | 'cancelado';
+export type OrderStatus = 'novo' | 'em_preparo' | 'em_rota' | 'entregue' | 'cancelado' | (string & {});
 export type OrderChannel = 'b2c' | 'b2b';
 export type CustomerType = 'b2c' | 'b2b';
 

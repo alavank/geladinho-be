@@ -155,6 +155,14 @@ export default function VisualizarGastoPage() {
             <img src={expense.receipt_image_url} alt="Comprovante" className="max-w-full rounded-lg border border-gray-200" />
           </div>
         )}
+
+        {/* Confirm button */}
+        <div className="pt-2 pb-8">
+          <Link href="/admin/gastos"
+            className="btn-primary w-full py-3 text-center block text-lg font-bold rounded-xl">
+            ✅ Confirmar e voltar para Gastos
+          </Link>
+        </div>
       </div>
     </div>
   );

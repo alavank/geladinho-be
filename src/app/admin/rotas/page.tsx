@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -22,35 +22,38 @@ function getOrderDisplayName(order: Order) {
     : order.customer_name;
 }
 
-function buildGoogleMapsUrl(orders: Order[]): string {
-  const withCoords = orders.filter((o) => o.latitude && o.longitude);
-  if (withCoords.length === 0) return '';
+function getOrderAddress(order: Order) {
+  return `${order.address_street} ${order.address_number}, ${order.address_postal_code} ${order.address_city}`;
+}
 
-  // Google Maps directions URL: origin + waypoints + destination
-  const origin = `${withCoords[0].latitude},${withCoords[0].longitude}`;
-  const destination = `${withCoords[withCoords.length - 1].latitude},${withCoords[withCoords.length - 1].longitude}`;
-  const waypoints = withCoords.slice(1, -1)
-    .map((o) => `${o.latitude},${o.longitude}`)
-    .join('|');
+const DEFAULT_ORIGIN = 'Rue de la Vérité 45A, 1070 Anderlecht, Belgique';
 
-  let url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=driving`;
+function buildGoogleMapsUrl(origin: string, orders: Order[]): string {
+  if (orders.length === 0) return '';
+
+  const stops = orders.map((o) =>
+    o.latitude && o.longitude
+      ? `${o.latitude},${o.longitude}`
+      : encodeURIComponent(getOrderAddress(o))
+  );
+
+  const destination = stops[stops.length - 1];
+  const waypoints = stops.slice(0, -1).join('|');
+  const originEncoded = encodeURIComponent(origin);
+
+  let url = `https://www.google.com/maps/dir/?api=1&origin=${originEncoded}&destination=${destination}&travelmode=driving`;
   if (waypoints) url += `&waypoints=${encodeURIComponent(waypoints)}`;
   return url;
 }
 
-function buildWazeUrl(orders: Order[]): string {
-  const withCoords = orders.filter((o) => o.latitude && o.longitude);
-  if (withCoords.length === 0) return '';
-
-  // Waze only supports one destination at a time
-  // For multi-stop, we link to the first stop
-  const first = withCoords[0];
-  return `https://waze.com/ul?ll=${first.latitude},${first.longitude}&navigate=yes`;
-}
-
-function buildAddressUrl(order: Order): string {
-  const addr = `${order.address_street} ${order.address_number}, ${order.address_postal_code} ${order.address_city}`;
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addr)}`;
+function buildWazeUrls(orders: Order[]): { label: string; url: string }[] {
+  return orders.map((o) => {
+    const addr = getOrderAddress(o);
+    const url = o.latitude && o.longitude
+      ? `https://waze.com/ul?ll=${o.latitude},${o.longitude}&navigate=yes`
+      : `https://waze.com/ul?q=${encodeURIComponent(addr)}&navigate=yes`;
+    return { label: getOrderDisplayName(o), url };
+  });
 }
 
 const B2C_COLOR = '#C41230';
@@ -60,8 +63,21 @@ export default function RotasPage() {
   const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [orderedIds, setOrderedIds] = useState<string[]>([]);
   const [showOnlyDeliverable, setShowOnlyDeliverable] = useState(true);
+
+  // Origin
+  const [origin, setOrigin] = useState(DEFAULT_ORIGIN);
+  const [editingOrigin, setEditingOrigin] = useState(false);
+  const [originDraft, setOriginDraft] = useState(DEFAULT_ORIGIN);
+
+  // Generated links
+  const [generatedGoogleUrl, setGeneratedGoogleUrl] = useState('');
+  const [generatedWazeLinks, setGeneratedWazeLinks] = useState<{ label: string; url: string }[]>([]);
+
+  // Drag-and-drop
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   useEffect(() => {
     fetch('/api/admin/orders')
@@ -82,11 +98,13 @@ export default function RotasPage() {
     return filtered.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
   }, [orders, showOnlyDeliverable]);
 
+  const selectedSet = useMemo(() => new Set(orderedIds), [orderedIds]);
+
   const selectedOrders = useMemo(() => {
-    return Array.from(selectedIds)
+    return orderedIds
       .map((id) => orders.find((o) => o.id === id))
       .filter(Boolean) as Order[];
-  }, [orders, selectedIds]);
+  }, [orders, orderedIds]);
 
   const routeMarkers = useMemo(() => {
     return selectedOrders
@@ -102,40 +120,76 @@ export default function RotasPage() {
   }, [selectedOrders]);
 
   const toggleOrder = (id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
+    setOrderedIds((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id);
+      return [...prev, id];
     });
+    // Clear generated links when selection changes
+    setGeneratedGoogleUrl('');
+    setGeneratedWazeLinks([]);
   };
 
   const selectAll = () => {
-    setSelectedIds(new Set(availableOrders.map((o) => o.id)));
+    setOrderedIds(availableOrders.map((o) => o.id));
+    setGeneratedGoogleUrl('');
+    setGeneratedWazeLinks([]);
   };
 
   const clearAll = () => {
-    setSelectedIds(new Set());
+    setOrderedIds([]);
+    setGeneratedGoogleUrl('');
+    setGeneratedWazeLinks([]);
   };
 
-  const moveUp = (id: string) => {
-    const arr = Array.from(selectedIds);
-    const idx = arr.indexOf(id);
-    if (idx <= 0) return;
-    [arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]];
-    setSelectedIds(new Set(arr));
+  // Drag-and-drop handlers
+  const handleDragStart = (index: number) => {
+    setDragIndex(index);
   };
 
-  const moveDown = (id: string) => {
-    const arr = Array.from(selectedIds);
-    const idx = arr.indexOf(id);
-    if (idx < 0 || idx >= arr.length - 1) return;
-    [arr[idx], arr[idx + 1]] = [arr[idx + 1], arr[idx]];
-    setSelectedIds(new Set(arr));
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    setDragOverIndex(index);
   };
 
-  const googleMapsUrl = useMemo(() => buildGoogleMapsUrl(selectedOrders), [selectedOrders]);
-  const wazeUrl = useMemo(() => buildWazeUrl(selectedOrders), [selectedOrders]);
+  const handleDrop = (index: number) => {
+    if (dragIndex === null || dragIndex === index) {
+      setDragIndex(null);
+      setDragOverIndex(null);
+      return;
+    }
+    setOrderedIds((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(dragIndex, 1);
+      next.splice(index, 0, moved);
+      return next;
+    });
+    setDragIndex(null);
+    setDragOverIndex(null);
+    setGeneratedGoogleUrl('');
+    setGeneratedWazeLinks([]);
+  };
+
+  const handleDragEnd = () => {
+    setDragIndex(null);
+    setDragOverIndex(null);
+  };
+
+  // Generate links
+  const handleGenerateGoogle = () => {
+    setGeneratedGoogleUrl(buildGoogleMapsUrl(origin, selectedOrders));
+  };
+
+  const handleGenerateWaze = () => {
+    setGeneratedWazeLinks(buildWazeUrls(selectedOrders));
+  };
+
+  // Origin editing
+  const handleSaveOrigin = () => {
+    setOrigin(originDraft.trim() || DEFAULT_ORIGIN);
+    setEditingOrigin(false);
+    setGeneratedGoogleUrl('');
+    setGeneratedWazeLinks([]);
+  };
 
   const totalUnits = selectedOrders.reduce((s, o) => s + o.total_units, 0);
   const totalValue = selectedOrders.reduce((s, o) => s + o.total_price_eur_cents + (o.freight_eur_cents || 0), 0);
@@ -154,6 +208,34 @@ export default function RotasPage() {
       </header>
 
       <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+        {/* Starting point */}
+        <div className="card p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <p className="text-xs font-semibold text-gray-500 uppercase mb-1">📍 Ponto de Partida</p>
+              {editingOrigin ? (
+                <div className="flex gap-2 items-center">
+                  <input className="input-field flex-1" value={originDraft}
+                    onChange={(e) => setOriginDraft(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleSaveOrigin(); }} />
+                  <button onClick={handleSaveOrigin}
+                    className="btn-primary py-2 px-4 text-sm">Salvar</button>
+                  <button onClick={() => { setEditingOrigin(false); setOriginDraft(origin); }}
+                    className="text-gray-500 hover:text-gray-700 text-sm font-semibold">Cancelar</button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <p className="font-medium text-gray-900">{origin}</p>
+                  <button onClick={() => { setOriginDraft(origin); setEditingOrigin(true); }}
+                    className="text-xs text-blue-600 hover:text-blue-800 font-semibold shrink-0">
+                    Mudar ponto de partida
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Left: Order selection */}
           <div className="space-y-4">
@@ -178,8 +260,8 @@ export default function RotasPage() {
                   <p className="text-center text-gray-400 py-6">Nenhum pedido disponível.</p>
                 ) : availableOrders.map((o) => (
                   <label key={o.id}
-                    className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${selectedIds.has(o.id) ? 'bg-orange-50 border border-orange-200' : 'bg-white border border-gray-100 hover:bg-gray-50'}`}>
-                    <input type="checkbox" checked={selectedIds.has(o.id)}
+                    className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${selectedSet.has(o.id) ? 'bg-orange-50 border border-orange-200' : 'bg-white border border-gray-100 hover:bg-gray-50'}`}>
+                    <input type="checkbox" checked={selectedSet.has(o.id)}
                       onChange={() => toggleOrder(o.id)}
                       className="rounded border-gray-300 text-orange-600 focus:ring-orange-500" />
                     <div className="flex-1 min-w-0">
@@ -217,58 +299,90 @@ export default function RotasPage() {
               </div>
             </div>
 
-            {/* Navigation buttons */}
+            {/* Route order (drag-and-drop) */}
             {selectedOrders.length > 0 && (
               <div className="card p-4">
-                <h3 className="font-bold text-gray-900 mb-3">🧭 Navegar</h3>
-                <div className="flex gap-3">
-                  {googleMapsUrl && (
-                    <a href={googleMapsUrl} target="_blank" rel="noopener noreferrer"
-                      className="flex-1 btn-primary py-2.5 text-center text-sm">
-                      🗺️ Google Maps
-                    </a>
-                  )}
-                  {wazeUrl && (
-                    <a href={wazeUrl} target="_blank" rel="noopener noreferrer"
-                      className="flex-1 py-2.5 text-center text-sm font-semibold rounded-xl border-2 border-blue-500 text-blue-600 hover:bg-blue-50 transition-colors">
-                      🚗 Waze
-                    </a>
-                  )}
-                </div>
-                {selectedOrders.filter((o) => !o.latitude).length > 0 && (
-                  <p className="text-xs text-amber-600 mt-2">⚠️ {selectedOrders.filter((o) => !o.latitude).length} pedido(s) sem coordenadas serão ignorados na navegação.</p>
-                )}
-              </div>
-            )}
-
-            {/* Route order (reorderable list) */}
-            {selectedOrders.length > 0 && (
-              <div className="card p-4">
-                <h3 className="font-bold text-gray-900 mb-3">📍 Ordem da Rota</h3>
-                <p className="text-xs text-gray-500 mb-3">Arraste para reordenar as paradas.</p>
+                <h3 className="font-bold text-gray-900 mb-2">📍 Ordem da Rota</h3>
+                <p className="text-xs text-gray-500 mb-3">Arraste os cards para reordenar as paradas.</p>
                 <div className="space-y-1">
                   {selectedOrders.map((o, i) => (
-                    <div key={o.id} className="flex items-center gap-2 p-2 rounded-lg bg-gray-50 border border-gray-100">
+                    <div key={o.id}
+                      draggable
+                      onDragStart={() => handleDragStart(i)}
+                      onDragOver={(e) => handleDragOver(e, i)}
+                      onDrop={() => handleDrop(i)}
+                      onDragEnd={handleDragEnd}
+                      className={`flex items-center gap-2 p-2 rounded-lg border transition-all cursor-grab active:cursor-grabbing ${
+                        dragOverIndex === i ? 'border-orange-400 bg-orange-50' :
+                        dragIndex === i ? 'opacity-50 border-gray-200 bg-gray-100' :
+                        'border-gray-100 bg-gray-50'
+                      }`}>
+                      <span className="text-gray-400 cursor-grab select-none shrink-0">⠿</span>
                       <span className="w-6 h-6 rounded-full bg-orange-600 text-white text-xs font-bold flex items-center justify-center shrink-0">
                         {i + 1}
                       </span>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900 truncate">{getOrderDisplayName(o)}</p>
-                        <p className="text-xs text-gray-500 truncate">{o.address_street} {o.address_number}, {o.address_city}</p>
+                        <p className="text-xs text-gray-500 truncate">{getOrderAddress(o)}</p>
                       </div>
-                      <div className="flex flex-col gap-0.5 shrink-0">
-                        <button onClick={() => moveUp(o.id)} disabled={i === 0}
-                          className="text-gray-400 hover:text-gray-700 disabled:opacity-20 text-xs">▲</button>
-                        <button onClick={() => moveDown(o.id)} disabled={i === selectedOrders.length - 1}
-                          className="text-gray-400 hover:text-gray-700 disabled:opacity-20 text-xs">▼</button>
-                      </div>
-                      <a href={buildAddressUrl(o)} target="_blank" rel="noopener noreferrer"
-                        className="text-blue-500 hover:text-blue-700 text-xs shrink-0" title="Ver no mapa">
-                        📍
-                      </a>
+                      <button onClick={() => toggleOrder(o.id)}
+                        className="text-gray-400 hover:text-red-500 shrink-0 text-xs" title="Remover">✕</button>
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* Generate navigation links */}
+            {selectedOrders.length > 0 && (
+              <div className="card p-4">
+                <h3 className="font-bold text-gray-900 mb-3">🧭 Gerar Links de Navegação</h3>
+                <div className="flex gap-3 mb-4">
+                  <button onClick={handleGenerateGoogle}
+                    className="flex-1 btn-primary py-2.5 text-center text-sm">
+                    🗺️ Gerar Rota Google Maps
+                  </button>
+                  <button onClick={handleGenerateWaze}
+                    className="flex-1 py-2.5 text-center text-sm font-semibold rounded-xl border-2 border-blue-500 text-blue-600 hover:bg-blue-50 transition-colors">
+                    🚗 Gerar Links Waze
+                  </button>
+                </div>
+
+                {selectedOrders.filter((o) => !o.latitude).length > 0 && (
+                  <p className="text-xs text-amber-600 mb-3">⚠️ {selectedOrders.filter((o) => !o.latitude).length} pedido(s) sem coordenadas — o Google Maps usará o endereço como texto.</p>
+                )}
+
+                {/* Generated Google Maps link */}
+                {generatedGoogleUrl && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-3">
+                    <p className="text-xs font-semibold text-green-700 uppercase mb-1">🗺️ Rota Google Maps</p>
+                    <p className="text-xs text-green-800 mb-2">{selectedOrders.length} paradas a partir de {origin.split(',')[0]}</p>
+                    <a href={generatedGoogleUrl} target="_blank" rel="noopener noreferrer"
+                      className="inline-block bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-700 transition-colors">
+                      Abrir no Google Maps →
+                    </a>
+                  </div>
+                )}
+
+                {/* Generated Waze links */}
+                {generatedWazeLinks.length > 0 && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <p className="text-xs font-semibold text-blue-700 uppercase mb-2">🚗 Links Waze (por parada)</p>
+                    <div className="space-y-1">
+                      {generatedWazeLinks.map((link, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center shrink-0">
+                            {i + 1}
+                          </span>
+                          <a href={link.url} target="_blank" rel="noopener noreferrer"
+                            className="text-sm text-blue-700 hover:text-blue-900 font-medium truncate hover:underline">
+                            {link.label}
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
