@@ -1,10 +1,10 @@
-const CACHE_NAME = 'ms-admin-v1';
+const CACHE_NAME = 'ms-app-v2';
 
 // Install — cache shell assets
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) =>
-      cache.addAll(['/admin', '/logo.png'])
+      cache.addAll(['/admin', '/take-photo-invoice', '/logo.png'])
     )
   );
   self.skipWaiting();

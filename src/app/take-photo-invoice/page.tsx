@@ -48,12 +48,6 @@ export default function TakePhotoInvoicePage() {
         body: formData,
       });
 
-      if (res.status === 401) {
-        setError('Sessão expirada. Faça login no painel admin primeiro.');
-        setStatus('error');
-        return;
-      }
-
       const data = await res.json();
       if (!res.ok) {
         setError(data.error || 'Erro ao processar');
@@ -241,3 +235,4 @@ export default function TakePhotoInvoicePage() {
     </div>
   );
 }
+

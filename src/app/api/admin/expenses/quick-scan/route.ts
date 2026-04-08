@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { isAdminAuthenticated, unauthorizedResponse } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import {
   normalizeExpenseItems,
@@ -40,8 +39,6 @@ const RECEIPT_SCHEMA = {
 };
 
 export async function POST(request: NextRequest) {
-  if (!isAdminAuthenticated(request)) return unauthorizedResponse();
-
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return NextResponse.json({ error: 'GEMINI_API_KEY não configurada' }, { status: 500 });

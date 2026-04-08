@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import { PWARegisterQuick } from './pwa-register';
 
 export const metadata: Metadata = {
   title: 'Registro Rápido — Madame Simone',
@@ -24,5 +25,10 @@ export default function TakePhotoLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return children;
+  return (
+    <>
+      {children}
+      <PWARegisterQuick />
+    </>
+  );
 }
