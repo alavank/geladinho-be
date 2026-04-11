@@ -17,6 +17,7 @@ type Step = 'catalog' | 'form' | 'confirm' | 'success';
 export interface FormData {
   customerName: string;
   customerPhone: string;
+  phoneCountry: string;
   addressFull: string;
   addressStreet: string;
   addressNumber: string;
@@ -35,7 +36,7 @@ export interface ActiveFlavor {
 }
 
 const EMPTY_FORM: FormData = {
-  customerName: '', customerPhone: '',
+  customerName: '', customerPhone: '', phoneCountry: 'BE',
   addressFull: '',
   addressStreet: '', addressNumber: '',
   addressPostalCode: '', addressCommune: '',
@@ -105,7 +106,7 @@ export default function HomePage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          customerName: formData.customerName, customerPhone: formData.customerPhone,
+          customerName: formData.customerName, customerPhone: formData.customerPhone, phoneCountry: formData.phoneCountry,
           addressStreet: formData.addressStreet, addressNumber: formData.addressNumber,
           addressPostalCode: formData.addressPostalCode, addressCommune: formData.addressCommune,
           needsChange: formData.needsChange, changeAmountEurCents: changeAmountCents,

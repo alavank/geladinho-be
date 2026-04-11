@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { normalizeBelgianPhone } from './phone';
 
 export const OrderItemSchema = z.object({
   flavorId: z.string(),
@@ -9,10 +8,8 @@ export const OrderItemSchema = z.object({
 
 export const CreateOrderSchema = z.object({
   customerName: z.string().min(2).max(150),
-  customerPhone: z.string().refine(
-    (val) => normalizeBelgianPhone(val) !== null,
-    'Número de telefone belga inválido'
-  ),
+  customerPhone: z.string().min(1, 'Telefone obrigatório'),
+  phoneCountry: z.string().length(2).default('BE'),
   addressStreet: z.string().min(1).max(200),
   addressNumber: z.string().min(1).max(20),
   addressPostalCode: z.string().regex(/^\d{4}$/, 'Código postal deve ter 4 dígitos'),

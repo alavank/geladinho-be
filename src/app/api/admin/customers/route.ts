@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdminAuthenticated, unauthorizedResponse } from '@/lib/auth';
 import { normalizeCustomerRecord } from '@/lib/customers';
-import { normalizeBelgianPhone } from '@/lib/phone';
+import { normalizePhone } from '@/lib/phone';
 import { supabaseAdmin } from '@/lib/supabase';
 import { Customer, CustomerType } from '@/types';
 
@@ -24,13 +24,13 @@ export async function POST(request: NextRequest) {
   if (!isAdminAuthenticated(request)) return unauthorizedResponse();
 
   const body = await request.json();
-  const phone = normalizeBelgianPhone(body.phone || '');
+  const phone = normalizePhone(body.phone || '', body.phone_country || 'BE');
 
   if (!body.name?.trim()) {
     return NextResponse.json({ error: 'Nome é obrigatório' }, { status: 400 });
   }
   if (!phone) {
-    return NextResponse.json({ error: 'Telefone belga inválido' }, { status: 400 });
+    return NextResponse.json({ error: 'Número de telefone inválido' }, { status: 400 });
   }
 
   const { data, error } = await supabaseAdmin

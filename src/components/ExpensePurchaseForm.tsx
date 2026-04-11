@@ -313,8 +313,12 @@ export default function ExpensePurchaseForm({
 
       applyOcrData(data.ocr_raw_data || data);
       setScanSuccess(true);
-    } catch {
-      setScanError('Erro de conexão ao processar imagem');
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        setScanError('Tempo esgotado ao processar imagem. Tente uma foto menor ou com melhor iluminação.');
+      } else {
+        setScanError('Erro de conexão ao processar imagem');
+      }
     }
 
     setScanning(false);

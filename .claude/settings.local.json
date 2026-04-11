@@ -5,7 +5,11 @@
       "Bash(npx tsc:*)",
       "Bash(./node_modules/.bin/tsc --noEmit)",
       "Bash(node -e ':*)",
-      "Bash(curl -s -b \"admin_session=authenticated\" http://localhost:3000/api/admin/expenses)"
+      "Bash(curl -s -b \"admin_session=authenticated\" http://localhost:3000/api/admin/expenses)",
+      "Bash(ls node_modules/.bin/tsc*)",
+      "Bash(ls node_modules/typescript/bin/)",
+      "Bash(npm run:*)",
+      "Bash(npm install:*)"
     ],
     "additionalDirectories": [
       "c:\\projetos\\geladinho-be\\src\\app\\api\\admin\\production",

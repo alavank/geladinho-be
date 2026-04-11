@@ -5,8 +5,9 @@ import { FormData } from '@/app/page';
 import { CartItem } from '@/types';
 import { hasStructuredAddress } from '@/lib/address';
 import { formatEUR } from '@/lib/flavors';
-import { isValidBelgianPhone, normalizeBelgianPhone } from '@/lib/phone';
+import { isValidPhone, normalizePhone } from '@/lib/phone';
 import AddressAutocomplete from './AddressAutocomplete';
+import PhoneInput from './PhoneInput';
 
 interface ActiveFlavor { id: string; name: string; priceEurCents: number; index: number }
 
@@ -32,6 +33,7 @@ export default function OrderForm({
   grandTotalCents,
 }: Props) {
   const [form, setForm] = useState<FormData>(initialData);
+  const [phoneCountry, setPhoneCountry] = useState('BE');
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
 
   const set = (field: keyof FormData, value: string | boolean) => {
@@ -45,8 +47,8 @@ export default function OrderForm({
     if (!form.customerName.trim() || form.customerName.trim().length < 2) {
       e.customerName = 'Nome completo obrigatório';
     }
-    if (!isValidBelgianPhone(form.customerPhone)) {
-      e.customerPhone = 'Número belga inválido (ex: +32 470 12 34 56)';
+    if (!isValidPhone(form.customerPhone, phoneCountry)) {
+      e.customerPhone = 'Número de telefone inválido';
     }
     if (!form.addressFull.trim()) {
       e.addressFull = 'Endereço obrigatório';
@@ -71,7 +73,7 @@ export default function OrderForm({
   return (
     <div>
       <h2 className="text-2xl font-bold text-gray-900 mb-6">📋 Seus Dados</h2>
-      <form onSubmit={(e) => { e.preventDefault(); if (validate()) onSubmit({ ...form, customerPhone: normalizeBelgianPhone(form.customerPhone) || form.customerPhone }); }} noValidate>
+      <form onSubmit={(e) => { e.preventDefault(); if (validate()) onSubmit({ ...form, customerPhone: normalizePhone(form.customerPhone, phoneCountry) || form.customerPhone, phoneCountry }); }} noValidate>
         <div className="card p-5 mb-5">
           <h3 className="font-bold text-gray-800 mb-4 text-lg">👤 Informações Pessoais</h3>
           <div className="space-y-4">
@@ -86,17 +88,15 @@ export default function OrderForm({
               {errors.customerName && <p className="text-red-500 text-xs mt-1">{errors.customerName}</p>}
             </div>
             <div>
-              <label className="label">Telefone (Bélgica) * <span className="text-brand-600 font-normal text-xs">📱 WhatsApp</span></label>
-              <input
-                className={`input-field ${err('customerPhone')}`}
-                placeholder="0470 12 34 56"
+              <label className="label">Telefone * <span className="text-brand-600 font-normal text-xs">📱 WhatsApp</span></label>
+              <PhoneInput
                 value={form.customerPhone}
-                onChange={(e) => set('customerPhone', e.target.value)}
-                onFocus={() => { if (!form.customerPhone) set('customerPhone', '+32'); }}
-                type="tel"
+                countryCode={phoneCountry}
+                onChangePhone={(v) => set('customerPhone', v)}
+                onChangeCountry={setPhoneCountry}
+                invalid={!!errors.customerPhone}
               />
               {errors.customerPhone && <p className="text-red-500 text-xs mt-1">{errors.customerPhone}</p>}
-              <p className="text-xs text-gray-400 mt-1">Formatos aceitos: +32 470..., 0470..., 0032 470...</p>
             </div>
           </div>
         </div>

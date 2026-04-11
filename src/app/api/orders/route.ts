@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { normalizeBelgianPhone } from '@/lib/phone';
+import { normalizePhone } from '@/lib/phone';
 import { supabaseAdmin } from '@/lib/supabase';
 import { sendTelegramNotification } from '@/lib/telegram';
 import { getSettings } from '@/lib/settings-server';
@@ -20,10 +20,8 @@ const CreateOrderSchema = z.object({
   establishmentName: z.string().min(2).max(200).optional(),
   customerEmail: z.string().email().optional().or(z.literal('')),
   // Common
-  customerPhone: z.string().refine(
-    (val) => normalizeBelgianPhone(val) !== null,
-    'Número de telefone belga inválido'
-  ),
+  customerPhone: z.string().min(1, 'Telefone obrigatório'),
+  phoneCountry: z.string().length(2).default('BE'),
   addressStreet: z.string().min(1).max(200),
   addressNumber: z.string().min(1).max(20),
   addressPostalCode: z.string().regex(/^\d{4}$/),
@@ -44,7 +42,10 @@ export async function POST(request: NextRequest) {
 
     const data = parsed.data;
     const settings = await getSettings();
-    const phoneE164 = normalizeBelgianPhone(data.customerPhone)!;
+    const phoneE164 = normalizePhone(data.customerPhone, data.phoneCountry);
+    if (!phoneE164) {
+      return NextResponse.json({ error: 'Número de telefone inválido' }, { status: 400 });
+    }
     const isB2B = data.channel === 'b2b';
 
     // Get correct flavor configs

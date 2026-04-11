@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdminAuthenticated, unauthorizedResponse } from '@/lib/auth';
 import { geocodeAddress } from '@/lib/geocoding';
-import { normalizeBelgianPhone } from '@/lib/phone';
+import { normalizePhone } from '@/lib/phone';
 import { supabaseAdmin } from '@/lib/supabase';
 import { OrderStatus } from '@/types';
 
@@ -74,9 +74,10 @@ export async function PATCH(
 
   if (body.customer_phone !== undefined || body.customer_phone_e164 !== undefined) {
     const phoneInput = body.customer_phone ?? body.customer_phone_e164 ?? '';
-    const normalizedPhone = normalizeBelgianPhone(String(phoneInput));
+    const phoneCountry = body.phone_country || 'BE';
+    const normalizedPhone = normalizePhone(String(phoneInput), phoneCountry);
     if (!normalizedPhone) {
-      return NextResponse.json({ error: 'Telefone belga inválido' }, { status: 400 });
+      return NextResponse.json({ error: 'Número de telefone inválido' }, { status: 400 });
     }
     updates.customer_phone_e164 = normalizedPhone;
   }

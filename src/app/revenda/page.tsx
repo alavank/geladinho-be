@@ -6,8 +6,9 @@ import { SystemSettings, FlavorConfig } from '@/lib/settings';
 import { CartItem } from '@/types';
 import { hasStructuredAddress } from '@/lib/address';
 import { formatEUR } from '@/lib/flavors';
-import { isValidBelgianPhone, normalizeBelgianPhone } from '@/lib/phone';
+import { isValidPhone, normalizePhone } from '@/lib/phone';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
+import PhoneInput from '@/components/PhoneInput';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -90,6 +91,7 @@ export default function RevendaPage() {
   const [submitError, setSubmitError] = useState('');
   const [settings, setSettings] = useState<SystemSettings | null>(null);
   const [loadingSettings, setLoadingSettings] = useState(true);
+  const [phoneCountry, setPhoneCountry] = useState('BE');
   const [errors, setErrors] = useState<Partial<Record<keyof B2BFormData, string>>>({});
 
   useEffect(() => {
@@ -150,8 +152,8 @@ export default function RevendaPage() {
     if (!formData.establishmentName.trim()) e.establishmentName = 'Nome do estabelecimento obrigatório';
     if (!formData.customerPhone.trim()) {
       e.customerPhone = 'Telefone obrigatório';
-    } else if (!isValidBelgianPhone(formData.customerPhone)) {
-      e.customerPhone = 'Número belga inválido (ex: +32 470 12 34 56 ou 0470 12 34 56)';
+    } else if (!isValidPhone(formData.customerPhone, phoneCountry)) {
+      e.customerPhone = 'Número de telefone inválido';
     }
     if (!formData.addressFull.trim()) {
       e.addressFull = 'Endereço obrigatório';
@@ -182,7 +184,8 @@ export default function RevendaPage() {
           channel: 'b2b',
           establishmentName: formData.establishmentName,
           customerName: formData.customerName,
-          customerPhone: normalizeBelgianPhone(formData.customerPhone) || formData.customerPhone,
+          customerPhone: normalizePhone(formData.customerPhone, phoneCountry) || formData.customerPhone,
+          phoneCountry,
           customerEmail: formData.customerEmail || undefined,
           addressStreet: formData.addressStreet,
           addressNumber: formData.addressNumber,
@@ -357,11 +360,13 @@ export default function RevendaPage() {
                     </div>
                     <div>
                       <label className="label">Telefone * <span className="text-blue-600 font-normal text-xs">📱 WhatsApp</span></label>
-                      <input className={`input-field ${errClass('customerPhone')}`} placeholder="0470 12 34 56"
-                        value={formData.customerPhone} onChange={(e) => setField('customerPhone', e.target.value)}
-                        onFocus={() => { if (!formData.customerPhone) setField('customerPhone', '+32'); }}
-                        type="tel" />
-                      <p className="text-xs text-gray-400 mt-1">Formatos aceitos: +32 470..., 0470..., 0032 470...</p>
+                      <PhoneInput
+                        value={formData.customerPhone}
+                        countryCode={phoneCountry}
+                        onChangePhone={(v) => setField('customerPhone', v)}
+                        onChangeCountry={setPhoneCountry}
+                        invalid={!!errors.customerPhone}
+                      />
                       {errors.customerPhone && <p className="text-red-500 text-xs mt-1">{errors.customerPhone}</p>}
                     </div>
                     <div>

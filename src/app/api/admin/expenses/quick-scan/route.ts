@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { compressImageForOcr, fetchWithTimeout } from '@/lib/image';
 import { supabaseAdmin } from '@/lib/supabase';
 import {
   normalizeExpenseItems,
@@ -51,11 +52,10 @@ export async function POST(request: NextRequest) {
   }
 
   const bytes = await file.arrayBuffer();
-  const base64 = Buffer.from(bytes).toString('base64');
-  const mimeType = file.type || 'image/jpeg';
+  const { base64, mimeType } = await compressImageForOcr(bytes);
 
   // Step 1: OCR via Gemini
-  const geminiResponse = await fetch(GEMINI_API_URL, {
+  const geminiResponse = await fetchWithTimeout(GEMINI_API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
     body: JSON.stringify({
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
       generationConfig: {
         temperature: 0.1,
         responseMimeType: 'application/json',
-        responseJsonSchema: RECEIPT_SCHEMA,
+        responseSchema: RECEIPT_SCHEMA,
       },
     }),
   });
@@ -76,11 +76,24 @@ export async function POST(request: NextRequest) {
   if (!geminiResponse.ok) {
     const rawError = await geminiResponse.text();
     console.error('Gemini error:', geminiResponse.status, rawError);
+
+    if (geminiResponse.status === 429) {
+      return NextResponse.json({ error: 'Limite de uso da IA atingido. Tente novamente em alguns instantes.' }, { status: 429 });
+    }
+
     return NextResponse.json({ error: 'Erro ao processar imagem com IA' }, { status: 502 });
   }
 
   const geminiData = await geminiResponse.json();
-  const responseText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  const candidate = geminiData?.candidates?.[0];
+  const finishReason = candidate?.finishReason;
+
+  if (!candidate || finishReason === 'SAFETY' || finishReason === 'OTHER') {
+    console.error('Gemini blocked or empty response:', finishReason, geminiData);
+    return NextResponse.json({ error: 'A IA não conseguiu processar esta imagem. Tente outra foto com melhor iluminação.' }, { status: 422 });
+  }
+
+  const responseText = candidate?.content?.parts?.[0]?.text || '';
 
   let ocrResult: Record<string, unknown>;
   try {
@@ -88,7 +101,7 @@ export async function POST(request: NextRequest) {
     ocrResult = JSON.parse(cleaned);
   } catch {
     console.error('Failed to parse Gemini response:', responseText);
-    return NextResponse.json({ error: 'Não foi possível interpretar a nota' }, { status: 422 });
+    return NextResponse.json({ error: 'Não foi possível interpretar a nota. Tente uma foto mais nítida.' }, { status: 422 });
   }
 
   // Step 2: Prepare expense data from OCR

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdminAuthenticated, unauthorizedResponse } from '@/lib/auth';
+import { compressImageForOcr, fetchWithTimeout } from '@/lib/image';
 
 const GEMINI_MODEL = 'gemini-2.5-flash';
 const GEMINI_API_URL =
@@ -101,10 +102,9 @@ export async function POST(request: NextRequest) {
   }
 
   const bytes = await file.arrayBuffer();
-  const base64 = Buffer.from(bytes).toString('base64');
-  const mimeType = file.type || 'image/jpeg';
+  const { base64, mimeType } = await compressImageForOcr(bytes);
 
-  const geminiResponse = await fetch(GEMINI_API_URL, {
+  const geminiResponse = await fetchWithTimeout(GEMINI_API_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
       generationConfig: {
         temperature: 0.1,
         responseMimeType: 'application/json',
-        responseJsonSchema: RECEIPT_SCHEMA,
+        responseSchema: RECEIPT_SCHEMA,
       },
     }),
   });
@@ -174,7 +174,18 @@ export async function POST(request: NextRequest) {
   }
 
   const geminiData = await geminiResponse.json();
-  const responseText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  const candidate = geminiData?.candidates?.[0];
+  const finishReason = candidate?.finishReason;
+
+  if (!candidate || finishReason === 'SAFETY' || finishReason === 'OTHER') {
+    console.error('Gemini blocked or empty response:', finishReason, geminiData);
+    return NextResponse.json(
+      { error: 'A IA não conseguiu processar esta imagem. Tente outra foto com melhor iluminação.' },
+      { status: 422 }
+    );
+  }
+
+  const responseText = candidate?.content?.parts?.[0]?.text || '';
 
   let ocrResult;
   try {
@@ -184,7 +195,7 @@ export async function POST(request: NextRequest) {
     console.error('Failed to parse Gemini response:', responseText);
     return NextResponse.json(
       {
-        error: 'Não foi possível interpretar a nota fiscal',
+        error: 'Não foi possível interpretar a nota fiscal. Tente uma foto mais nítida.',
         raw_text: responseText,
       },
       { status: 422 }

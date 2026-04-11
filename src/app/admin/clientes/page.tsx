@@ -4,14 +4,17 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
+import PhoneInput from '@/components/PhoneInput';
 import { Customer, CustomerType } from '@/types';
 import { getCustomerDisplayName } from '@/lib/customers';
+import { detectCountryFromE164, getLocalNumber } from '@/lib/phone';
 
 const EMPTY_FORM = {
   type: 'b2b' as CustomerType,
   name: '',
   establishment_name: '',
   phone: '',
+  phone_country: 'BE',
   email: '',
   address_full: '',
   address_street: '',
@@ -67,7 +70,7 @@ export default function ClientesPage() {
     const response = await fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
+      body: JSON.stringify({ ...form, phone_country: form.phone_country }),
     });
 
     if (response.ok) {
@@ -81,12 +84,14 @@ export default function ClientesPage() {
   };
 
   const startEdit = (customer: Customer) => {
+    const detectedCountry = detectCountryFromE164(customer.phone_e164);
     setEditingId(customer.id);
     setForm({
       type: customer.type,
       name: customer.name,
       establishment_name: customer.establishment_name || '',
-      phone: customer.phone_e164,
+      phone: getLocalNumber(customer.phone_e164, detectedCountry),
+      phone_country: detectedCountry,
       email: customer.email || '',
       address_full: customer.address_full || '',
       address_street: customer.address_street || '',
@@ -209,12 +214,11 @@ export default function ClientesPage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <label className="label">Telefone *</label>
-                  <input
-                    type="text"
-                    className="input-field"
-                    placeholder="+32 470 12 34 56"
+                  <PhoneInput
                     value={form.phone}
-                    onChange={(event) => setForm({ ...form, phone: event.target.value })}
+                    countryCode={form.phone_country}
+                    onChangePhone={(v) => setForm({ ...form, phone: v })}
+                    onChangeCountry={(c) => setForm({ ...form, phone_country: c })}
                   />
                 </div>
                 <div>
