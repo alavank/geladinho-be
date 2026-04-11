@@ -1,10 +1,11 @@
 'use client';
 
 import type { ComponentType, ReactNode } from 'react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { usePathname, useRouter } from 'next/navigation';
 import { ADMIN_SPA_ROUTES, AdminSpaRoute, isAdminSpaRoute } from '@/lib/admin-spa';
+import { AdminShellProvider } from '@/components/admin/AdminShellContext';
 
 function ModuleLoading() {
   return (
@@ -43,6 +44,7 @@ const routeModules: Record<AdminSpaRoute, ComponentType> = {
 type OverlayRouteDefinition = {
   baseRoute: AdminSpaRoute;
   component: PreloadableComponent;
+  panelClassName?: string;
   pattern: RegExp;
 };
 
@@ -50,36 +52,43 @@ const overlayRouteDefinitions: OverlayRouteDefinition[] = [
   {
     baseRoute: '/admin',
     component: dynamic(() => import('@/app/admin/pedidos/[id]/page'), { loading: ModuleLoading }),
+    panelClassName: 'max-w-6xl',
     pattern: /^\/admin\/pedidos\/[^/]+$/,
   },
   {
     baseRoute: '/admin/gastos',
     component: dynamic(() => import('@/app/admin/gastos/novo/page'), { loading: ModuleLoading }),
+    panelClassName: 'max-w-6xl',
     pattern: /^\/admin\/gastos\/novo$/,
   },
   {
     baseRoute: '/admin/gastos',
     component: dynamic(() => import('@/app/admin/gastos/categorias/page'), { loading: ModuleLoading }),
+    panelClassName: 'max-w-3xl',
     pattern: /^\/admin\/gastos\/categorias$/,
   },
   {
     baseRoute: '/admin/gastos',
     component: dynamic(() => import('@/app/admin/gastos/fornecedores/page'), { loading: ModuleLoading }),
+    panelClassName: 'max-w-3xl',
     pattern: /^\/admin\/gastos\/fornecedores$/,
   },
   {
     baseRoute: '/admin/gastos',
     component: dynamic(() => import('@/app/admin/gastos/[id]/editar/page'), { loading: ModuleLoading }),
+    panelClassName: 'max-w-6xl',
     pattern: /^\/admin\/gastos\/[^/]+\/editar$/,
   },
   {
     baseRoute: '/admin/gastos',
     component: dynamic(() => import('@/app/admin/gastos/[id]/page'), { loading: ModuleLoading }),
+    panelClassName: 'max-w-4xl',
     pattern: /^\/admin\/gastos\/[^/]+$/,
   },
   {
     baseRoute: '/admin/configuracoes',
     component: dynamic(() => import('@/app/admin/configuracoes/b2b/page'), { loading: ModuleLoading }),
+    panelClassName: 'max-w-4xl',
     pattern: /^\/admin\/configuracoes\/b2b$/,
   },
 ];
@@ -97,6 +106,7 @@ export default function AdminSpaShell({ children }: { children: ReactNode }) {
   const shouldUseShell = activeBaseRoute !== null;
   const canPreloadModules = currentPath !== '/admin/login';
   const OverlayComponent = overlayRoute?.component;
+  const overlayPanelClassName = overlayRoute?.panelClassName || 'max-w-6xl';
 
   const [visitedRoutes, setVisitedRoutes] = useState<AdminSpaRoute[]>(() =>
     activeBaseRoute ? [activeBaseRoute] : []
@@ -141,6 +151,25 @@ export default function AdminSpaShell({ children }: { children: ReactNode }) {
     };
   }, [overlayRoute]);
 
+  const closeOverlay = useCallback(() => {
+    if (!overlayRoute) return;
+    router.push(overlayRoute.baseRoute, { scroll: false });
+  }, [overlayRoute, router]);
+
+  useEffect(() => {
+    if (!overlayRoute) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeOverlay();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [closeOverlay, overlayRoute]);
+
   useEffect(() => {
     if (!canPreloadModules) return;
 
@@ -160,7 +189,7 @@ export default function AdminSpaShell({ children }: { children: ReactNode }) {
   }, [canPreloadModules, currentPath]);
 
   return (
-    <>
+    <AdminShellProvider value={{ activeRoute: activeBaseRoute, shellEnabled: shouldUseShell }}>
       <div className={shouldUseShell ? 'block' : 'hidden'}>
         {visitedRoutes.map((route) => {
           const Module = routeModules[route];
@@ -176,15 +205,17 @@ export default function AdminSpaShell({ children }: { children: ReactNode }) {
       {overlayRoute && OverlayComponent && (
         <div
           className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-[2px]"
-          onClick={() => router.push(overlayRoute.baseRoute, { scroll: false })}
+          onClick={closeOverlay}
         >
           <div
-            className="absolute inset-y-0 right-0 w-full max-w-6xl overflow-y-auto bg-gray-50 shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            className={`absolute inset-y-0 right-0 w-full overflow-y-auto bg-gray-50 shadow-2xl ${overlayPanelClassName}`}
             onClick={(event) => event.stopPropagation()}
           >
             <button
               type="button"
-              onClick={() => router.push(overlayRoute.baseRoute, { scroll: false })}
+              onClick={closeOverlay}
               className="fixed right-4 top-4 z-[60] rounded-full border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-600 shadow-sm hover:bg-gray-50 hover:text-gray-900"
             >
               Fechar
@@ -194,6 +225,6 @@ export default function AdminSpaShell({ children }: { children: ReactNode }) {
         </div>
       )}
       {!shouldUseShell && children}
-    </>
+    </AdminShellProvider>
   );
 }

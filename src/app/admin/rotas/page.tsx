@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AdminHeader from '@/components/AdminHeader';
+import { useIsAdminModuleActive } from '@/components/admin/AdminShellContext';
 import { Order, SavedRoute } from '@/types';
 import { formatEUR } from '@/lib/flavors';
 import OrdersMap from '@/components/OrdersMap';
@@ -76,6 +77,7 @@ type View = 'list' | 'build' | 'detail';
 
 export default function RotasPage() {
   const router = useRouter();
+  const isActiveModule = useIsAdminModuleActive('/admin/rotas');
   const [view, setView] = useState<View>('list');
   const [orders, setOrders] = useState<Order[]>([]);
   const [savedRoutes, setSavedRoutes] = useState<SavedRoute[]>([]);
@@ -99,8 +101,13 @@ export default function RotasPage() {
 
   // Detail mode
   const [activeRoute, setActiveRoute] = useState<SavedRoute | null>(null);
+  const lastFetchedAtRef = useRef(0);
 
-  const fetchAll = async () => {
+  const fetchAll = useCallback(async (force = false) => {
+    if (!force && lastFetchedAtRef.current > 0 && Date.now() - lastFetchedAtRef.current < 45000) {
+      return;
+    }
+
     const [ordersRes, routesRes] = await Promise.all([
       fetch('/api/admin/orders'),
       fetch('/api/admin/routes'),
@@ -108,10 +115,14 @@ export default function RotasPage() {
     if (ordersRes.status === 401) { router.push('/admin/login'); return; }
     setOrders(await ordersRes.json());
     setSavedRoutes(await routesRes.json());
+    lastFetchedAtRef.current = Date.now();
     setLoading(false);
-  };
+  }, [router]);
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => {
+    if (!isActiveModule) return;
+    void fetchAll();
+  }, [fetchAll, isActiveModule]);
 
   // Build mode helpers
   const availableOrders = useMemo(() => {
@@ -196,7 +207,7 @@ export default function RotasPage() {
       setOrderedIds([]);
       setGeneratedGoogleUrl('');
       setGeneratedWazeLinks([]);
-      await fetchAll();
+      await fetchAll(true);
       setView('list');
     } else {
       const data = await res.json();
@@ -211,6 +222,7 @@ export default function RotasPage() {
     const res = await fetch(`/api/admin/routes/${id}`, { method: 'DELETE' });
     if (res.ok) {
       setSavedRoutes((prev) => prev.filter((r) => r.id !== id));
+      lastFetchedAtRef.current = Date.now();
       if (activeRoute?.id === id) { setActiveRoute(null); setView('list'); }
     } else alert('Erro ao excluir');
   };

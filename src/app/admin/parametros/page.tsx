@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AdminHeader from '@/components/AdminHeader';
+import { useIsAdminModuleActive } from '@/components/admin/AdminShellContext';
 import { ExpenseCategory, OrderStatusConfig } from '@/types';
 
 const ICON_OPTIONS = ['🛒', '⛽', '👷', '📦', '📋', '🏠', '💡', '🚗', '🍳', '🧊', '🧹', '💰', '📱', '🔧', '🎨'];
@@ -12,6 +13,7 @@ type TabKey = 'expense-categories' | 'order-statuses';
 
 export default function ParametrosPage() {
   const router = useRouter();
+  const isActiveModule = useIsAdminModuleActive('/admin/parametros');
   const [tab, setTab] = useState<TabKey>('expense-categories');
   const [loading, setLoading] = useState(true);
 
@@ -33,8 +35,13 @@ export default function ParametrosPage() {
   const [newStatusColor, setNewStatusColor] = useState('#6B7280');
 
   const [error, setError] = useState('');
+  const lastFetchedAtRef = useRef(0);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async (force = false) => {
+    if (!force && lastFetchedAtRef.current > 0 && Date.now() - lastFetchedAtRef.current < 60000) {
+      return;
+    }
+
     const [categoriesResponse, statusesResponse] = await Promise.all([
       fetch('/api/admin/expense-categories'),
       fetch('/api/admin/order-statuses'),
@@ -47,12 +54,14 @@ export default function ParametrosPage() {
 
     setCategories(await categoriesResponse.json());
     setStatusConfigs(await statusesResponse.json());
+    lastFetchedAtRef.current = Date.now();
     setLoading(false);
-  };
+  }, [router]);
 
   useEffect(() => {
+    if (!isActiveModule) return;
     void fetchData();
-  }, []);
+  }, [fetchData, isActiveModule]);
 
   const handleAddCategory = async () => {
     if (!newName.trim()) {
@@ -71,7 +80,7 @@ export default function ParametrosPage() {
       setNewColor('#6B7280');
       setNewIcon('📦');
       setError('');
-      void fetchData();
+      void fetchData(true);
       return;
     }
 
@@ -100,7 +109,7 @@ export default function ParametrosPage() {
     if (response.ok) {
       setEditingCategoryId(null);
       setError('');
-      void fetchData();
+      void fetchData(true);
       return;
     }
 
@@ -114,7 +123,7 @@ export default function ParametrosPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ active: !category.active }),
     });
-    void fetchData();
+    void fetchData(true);
   };
 
   const handleDeleteCategory = async (category: ExpenseCategory) => {
@@ -125,7 +134,7 @@ export default function ParametrosPage() {
     });
 
     if (response.ok) {
-      void fetchData();
+      void fetchData(true);
       return;
     }
 
@@ -154,7 +163,7 @@ export default function ParametrosPage() {
     if (response.ok) {
       setEditingStatusKey(null);
       setError('');
-      void fetchData();
+      void fetchData(true);
       return;
     }
 
@@ -185,7 +194,7 @@ export default function ParametrosPage() {
       setNewStatusLabel('');
       setNewStatusColor('#6B7280');
       setError('');
-      void fetchData();
+      void fetchData(true);
       return;
     }
 
@@ -201,7 +210,7 @@ export default function ParametrosPage() {
     });
 
     if (response.ok) {
-      void fetchData();
+      void fetchData(true);
       return;
     }
 
@@ -215,7 +224,7 @@ export default function ParametrosPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ active: !config.active }),
     });
-    void fetchData();
+    void fetchData(true);
   };
 
   if (loading) {

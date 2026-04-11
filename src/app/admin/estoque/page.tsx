@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AdminHeader from '@/components/AdminHeader';
+import { useIsAdminModuleActive } from '@/components/admin/AdminShellContext';
 import { FLAVORS } from '@/lib/flavors';
 import {
   ProductionBatch,
@@ -27,6 +28,7 @@ type Tab = 'estoque' | 'producao' | 'ajustes';
 
 export default function EstoquePage() {
   const router = useRouter();
+  const isActiveModule = useIsAdminModuleActive('/admin/estoque');
   const [tab, setTab] = useState<Tab>('estoque');
   const [stock, setStock] = useState<StockLevel[]>([]);
   const [batches, setBatches] = useState<ProductionBatch[]>([]);
@@ -47,8 +49,13 @@ export default function EstoquePage() {
   const [adjDate, setAdjDate] = useState(todayStr());
   const [adjNotes, setAdjNotes] = useState('');
   const [adjSaving, setAdjSaving] = useState(false);
+  const lastFetchedAtRef = useRef(0);
 
-  const fetchAll = async () => {
+  const fetchAll = useCallback(async (force = false) => {
+    if (!force && lastFetchedAtRef.current > 0 && Date.now() - lastFetchedAtRef.current < 30000) {
+      return;
+    }
+
     const [sRes, pRes, aRes] = await Promise.all([
       fetch('/api/admin/stock'),
       fetch('/api/admin/production'),
@@ -58,10 +65,14 @@ export default function EstoquePage() {
     setStock(await sRes.json());
     setBatches(await pRes.json());
     setAdjustments(await aRes.json());
+    lastFetchedAtRef.current = Date.now();
     setLoading(false);
-  };
+  }, [router]);
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => {
+    if (!isActiveModule) return;
+    void fetchAll();
+  }, [fetchAll, isActiveModule]);
 
   const totalProduced = useMemo(() => stock.reduce((s, l) => s + l.produced, 0), [stock]);
   const totalSold = useMemo(() => stock.reduce((s, l) => s + l.sold, 0), [stock]);
@@ -89,7 +100,7 @@ export default function EstoquePage() {
       setProdFlavorId('');
       setProdQuantity('');
       setProdNotes('');
-      await fetchAll();
+      await fetchAll(true);
     } else {
       const data = await res.json();
       alert(data.error || 'Erro ao salvar');
@@ -124,7 +135,7 @@ export default function EstoquePage() {
       setAdjFlavorId('');
       setAdjQuantity('');
       setAdjNotes('');
-      await fetchAll();
+      await fetchAll(true);
     } else {
       const data = await res.json();
       alert(data.error || 'Erro ao salvar');
@@ -135,7 +146,7 @@ export default function EstoquePage() {
   const handleDeleteBatch = async (id: string) => {
     if (!confirm('Excluir este registro de produção?')) return;
     const res = await fetch(`/api/admin/production/${id}`, { method: 'DELETE' });
-    if (res.ok) await fetchAll();
+    if (res.ok) await fetchAll(true);
     else alert('Erro ao excluir');
   };
 

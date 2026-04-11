@@ -32,7 +32,7 @@ export default function VisualizarGastoPage() {
       })
       .then(setExpense)
       .catch((e: Error) => {
-        if (e.message === 'not-found') router.push('/admin/gastos');
+        if (e.message === 'not-found') router.push('/admin/gastos', { scroll: false });
       })
       .finally(() => setLoading(false));
   }, [id, router]);
@@ -41,7 +41,7 @@ export default function VisualizarGastoPage() {
     if (!confirm('Excluir este gasto?')) return;
     setDeletingId(id);
     const res = await fetch(`/api/admin/expenses/${id}`, { method: 'DELETE' });
-    if (res.ok) router.push('/admin/gastos');
+    if (res.ok) router.push('/admin/gastos', { scroll: false });
     else alert('Erro ao excluir');
     setDeletingId(null);
   };

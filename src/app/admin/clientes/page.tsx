@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AdminHeader from '@/components/AdminHeader';
+import { useIsAdminModuleActive } from '@/components/admin/AdminShellContext';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
 import PhoneInput from '@/components/PhoneInput';
 import { Customer, CustomerType } from '@/types';
@@ -27,26 +28,35 @@ const EMPTY_FORM = {
 
 export default function ClientesPage() {
   const router = useRouter();
+  const isActiveModule = useIsAdminModuleActive('/admin/clientes');
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [error, setError] = useState('');
+  const lastFetchedAtRef = useRef(0);
 
-  const fetchCustomers = async () => {
+  const fetchCustomers = useCallback(async (force = false) => {
+    if (!force && lastFetchedAtRef.current > 0 && Date.now() - lastFetchedAtRef.current < 30000) {
+      return;
+    }
+
     const response = await fetch('/api/admin/customers');
     if (response.status === 401) {
       router.push('/admin/login');
       return;
     }
     setCustomers(await response.json());
+    lastFetchedAtRef.current = Date.now();
     setLoading(false);
-  };
+  }, [router]);
 
   useEffect(() => {
+    if (!isActiveModule) return;
+
     void fetchCustomers();
-  }, []);
+  }, [fetchCustomers, isActiveModule]);
 
   const resetForm = () => {
     setForm(EMPTY_FORM);
@@ -76,7 +86,7 @@ export default function ClientesPage() {
 
     if (response.ok) {
       resetForm();
-      void fetchCustomers();
+      void fetchCustomers(true);
       return;
     }
 
@@ -110,7 +120,7 @@ export default function ClientesPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ active: !customer.active }),
     });
-    void fetchCustomers();
+    void fetchCustomers(true);
   };
 
   const handleDelete = async (customer: Customer) => {
@@ -121,7 +131,7 @@ export default function ClientesPage() {
     });
 
     if (response.ok) {
-      void fetchCustomers();
+      void fetchCustomers(true);
       return;
     }
 

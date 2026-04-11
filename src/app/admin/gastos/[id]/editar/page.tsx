@@ -46,7 +46,7 @@ export default function EditarGastoPage() {
       })
       .catch((error: Error) => {
         if (error.message === 'not-found') {
-          router.push('/admin/gastos');
+          router.push('/admin/gastos', { scroll: false });
           return;
         }
         if (error.message !== 'unauth') setLoading(false);
@@ -64,7 +64,7 @@ export default function EditarGastoPage() {
     });
 
     if (response.ok) {
-      router.push(`/admin/gastos/${id}`);
+      router.push(`/admin/gastos/${id}`, { scroll: false });
       return;
     }
 

@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AdminHeader from '@/components/AdminHeader';
+import { useIsAdminModuleActive } from '@/components/admin/AdminShellContext';
 import { SystemSettings, FlavorConfig, getDefaultSettings } from '@/lib/settings';
 import { formatEUR } from '@/lib/flavors';
 
@@ -40,6 +41,7 @@ function PriceCell({ cents, onChange }: { cents: number; onChange: (c: number) =
 
 export default function ConfiguracoesPage() {
   const router = useRouter();
+  const isActiveModule = useIsAdminModuleActive('/admin/configuracoes');
   const [settings, setSettings] = useState<SystemSettings>({ ...getDefaultSettings(), flavorConfigs: [] });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -52,13 +54,27 @@ export default function ConfiguracoesPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editPriceCents, setEditPriceCents] = useState(0);
+  const lastFetchedAtRef = useRef(0);
+
+  const fetchSettings = useCallback(async (force = false) => {
+    if (!force && lastFetchedAtRef.current > 0 && Date.now() - lastFetchedAtRef.current < 120000) {
+      return;
+    }
+
+    return fetch('/api/admin/settings')
+      .then((r) => { if (r.status === 401) { router.push('/admin/login'); throw new Error('unauth'); } return r.json(); })
+      .then((data: SystemSettings) => {
+        setSettings({ ...data, flavorConfigs: data.flavorConfigs ?? [] });
+        lastFetchedAtRef.current = Date.now();
+        setLoading(false);
+      })
+      .catch((e) => { if (e.message !== 'unauth') { setError('Erro ao carregar'); setLoading(false); } });
+  }, [router]);
 
   useEffect(() => {
-    fetch('/api/admin/settings')
-      .then((r) => { if (r.status === 401) { router.push('/admin/login'); throw new Error('unauth'); } return r.json(); })
-      .then((data: SystemSettings) => { setSettings({ ...data, flavorConfigs: data.flavorConfigs ?? [] }); setLoading(false); })
-      .catch((e) => { if (e.message !== 'unauth') { setError('Erro ao carregar'); setLoading(false); } });
-  }, []);
+    if (!isActiveModule) return;
+    void fetchSettings();
+  }, [fetchSettings, isActiveModule]);
 
   const update = (id: string, patch: Partial<FlavorConfig>) =>
     setSettings((p) => ({ ...p, flavorConfigs: p.flavorConfigs.map((fc) => fc.id === id ? { ...fc, ...patch } : fc) }));

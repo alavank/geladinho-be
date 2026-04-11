@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import AdminHeader from '@/components/AdminHeader';
+import { useIsAdminModuleActive } from '@/components/admin/AdminShellContext';
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend
@@ -78,14 +79,20 @@ function CustomTooltip({ active, payload, label, isCurrency = false }: { active?
 
 export default function RelatoriosPage() {
   const router = useRouter();
+  const isActiveModule = useIsAdminModuleActive('/admin/relatorios');
   const [orders, setOrders] = useState<OrderWithItems[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<Period>('30d');
   const [channelView, setChannelView] = useState<ChannelView>('all');
+  const lastFetchedAtRef = useRef(0);
 
-  useEffect(() => {
-    Promise.all([
+  const fetchData = useCallback(async (force = false) => {
+    if (!force && lastFetchedAtRef.current > 0 && Date.now() - lastFetchedAtRef.current < 120000) {
+      return;
+    }
+
+    return Promise.all([
       fetch('/api/admin/orders')
         .then((r) => { if (r.status === 401) { router.push('/admin/login'); throw new Error('unauth'); } return r.json(); })
         .then(async (orderList: Order[]) => {
@@ -99,9 +106,15 @@ export default function RelatoriosPage() {
     ]).then(([withItems, expenseList]) => {
       setOrders(withItems);
       setExpenses(expenseList);
+      lastFetchedAtRef.current = Date.now();
       setLoading(false);
     }).catch((e) => { if (e.message !== 'unauth') setLoading(false); });
-  }, []);
+  }, [router]);
+
+  useEffect(() => {
+    if (!isActiveModule) return;
+    void fetchData();
+  }, [fetchData, isActiveModule]);
 
   const periodFiltered = useMemo(() => filterByPeriod(orders, period), [orders, period]);
   const filtered = useMemo(() => {

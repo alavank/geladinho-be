@@ -235,7 +235,7 @@ export default function OrderDetailPage() {
 
     const response = await fetch(`/api/admin/orders/${id}`, { method: 'DELETE' });
     if (response.ok) {
-      router.push('/admin');
+      router.push('/admin', { scroll: false });
     } else {
       const data = await response.json().catch(() => ({}));
       setPageError(data.error || 'Erro ao excluir pedido');

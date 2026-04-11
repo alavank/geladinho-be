@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AdminHeader from '@/components/AdminHeader';
+import { useIsAdminModuleActive } from '@/components/admin/AdminShellContext';
 import { Expense, ExpenseCategory, Supplier } from '@/types';
 import { formatEUR } from '@/lib/flavors';
 
@@ -25,6 +26,7 @@ function formatDate(dateStr: string): string {
 
 export default function GastosPage() {
   const router = useRouter();
+  const isActiveModule = useIsAdminModuleActive('/admin/gastos');
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -35,8 +37,13 @@ export default function GastosPage() {
   const [linkingExpense, setLinkingExpense] = useState<Expense | null>(null);
   const [selectedSupplierId, setSelectedSupplierId] = useState('');
   const [bindingId, setBindingId] = useState<string | null>(null);
+  const lastFetchedAtRef = useRef(0);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async (force = false) => {
+    if (!force && lastFetchedAtRef.current > 0 && Date.now() - lastFetchedAtRef.current < 30000) {
+      return;
+    }
+
     const [resExp, resCat, resSup] = await Promise.all([
       fetch('/api/admin/expenses'),
       fetch('/api/admin/expense-categories'),
@@ -46,10 +53,14 @@ export default function GastosPage() {
     setExpenses(await resExp.json());
     setCategories(await resCat.json());
     setSuppliers(await resSup.json());
+    lastFetchedAtRef.current = Date.now();
     setLoading(false);
-  };
+  }, [router]);
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    if (!isActiveModule) return;
+    void fetchData();
+  }, [fetchData, isActiveModule]);
 
   const filtered = useMemo(() => {
     let result = expenses;
@@ -87,7 +98,10 @@ export default function GastosPage() {
     if (!confirm('Excluir este gasto?')) return;
     setDeletingId(id);
     const res = await fetch(`/api/admin/expenses/${id}`, { method: 'DELETE' });
-    if (res.ok) setExpenses((prev) => prev.filter((e) => e.id !== id));
+    if (res.ok) {
+      setExpenses((prev) => prev.filter((e) => e.id !== id));
+      lastFetchedAtRef.current = Date.now();
+    }
     else alert('Erro ao excluir');
     setDeletingId(null);
   };
@@ -114,6 +128,7 @@ export default function GastosPage() {
       const updated = await res.json();
       setExpenses((prev) => prev.map((e) => e.id === linkingExpense.id ? { ...e, ...updated } : e));
       setLinkingExpense(null);
+      lastFetchedAtRef.current = Date.now();
     } else {
       alert('Erro ao vincular fornecedor');
     }

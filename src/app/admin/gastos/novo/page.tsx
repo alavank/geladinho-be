@@ -49,7 +49,7 @@ export default function NovoGastoPage() {
 
     if (response.ok) {
       const created = await response.json();
-      router.push(`/admin/gastos/${created.id}`);
+      router.push(`/admin/gastos/${created.id}`, { scroll: false });
       return;
     }
 

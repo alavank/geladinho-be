@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AdminHeader from '@/components/AdminHeader';
+import { useIsAdminModuleActive } from '@/components/admin/AdminShellContext';
 import { hasStructuredAddress } from '@/lib/address';
 import {
   getCustomerDisplayName,
@@ -46,8 +47,14 @@ export default function AdminPage() {
   const [bindingOrderId, setBindingOrderId] = useState<string | null>(null);
   const [bindingError, setBindingError] = useState('');
   const router = useRouter();
+  const isActiveModule = useIsAdminModuleActive('/admin');
+  const lastFetchedAtRef = useRef(0);
 
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async (force = false) => {
+    if (!force && lastFetchedAtRef.current > 0 && Date.now() - lastFetchedAtRef.current < 15000) {
+      return;
+    }
+
     const [ordersResponse, statusesResponse, customersResponse] = await Promise.all([
       fetch('/api/admin/orders'),
       fetch('/api/admin/order-statuses'),
@@ -82,14 +89,17 @@ export default function AdminPage() {
       setCustomers(await customersResponse.json());
     }
 
+    lastFetchedAtRef.current = Date.now();
     setLoading(false);
-  };
+  }, [router]);
 
   useEffect(() => {
+    if (!isActiveModule) return;
+
     void fetchOrders();
-    const interval = setInterval(() => { void fetchOrders(); }, 30000);
+    const interval = setInterval(() => { void fetchOrders(true); }, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchOrders, isActiveModule]);
 
   const handleLogout = async () => {
     await fetch('/api/admin/login', { method: 'DELETE' });
@@ -191,7 +201,7 @@ export default function AdminPage() {
         breadcrumbs={[{ label: 'Pedidos' }]}
         actions={
           <>
-            <button onClick={() => void fetchOrders()} className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-700">
+            <button onClick={() => void fetchOrders(true)} className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-700">
               Atualizar
             </button>
             <button onClick={handleLogout} className="rounded-lg border border-red-200 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 hover:text-red-700">
