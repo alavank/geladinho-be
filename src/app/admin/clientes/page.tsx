@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import AdminHeader from '@/components/AdminHeader';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
 import PhoneInput from '@/components/PhoneInput';
 import { Customer, CustomerType } from '@/types';
@@ -134,23 +135,21 @@ export default function ClientesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-gray-200 bg-white px-6 py-3 shadow-sm">
-        <div className="flex items-center gap-4">
-          <Link href="/admin" className="font-medium text-gray-500 hover:text-gray-700">← Admin</Link>
-          <span className="text-gray-300">|</span>
-          <h1 className="font-bold text-gray-900">👥 Clientes</h1>
-        </div>
-        <button
-          type="button"
-          onClick={() => {
-            resetForm();
-            setShowForm(true);
-          }}
-          className="btn-primary py-2 px-4 text-sm"
-        >
-          + Novo Cliente
-        </button>
-      </header>
+      <AdminHeader
+        breadcrumbs={[
+          { label: 'Pedidos', href: '/admin' },
+          { label: 'Clientes' },
+        ]}
+        actions={
+          <button
+            type="button"
+            onClick={() => { resetForm(); setShowForm(true); }}
+            className="btn-primary py-2 px-4 text-sm"
+          >
+            + Novo Cliente
+          </button>
+        }
+      />
 
       <div className="mx-auto max-w-3xl space-y-6 px-4 py-8">
         {showForm && (

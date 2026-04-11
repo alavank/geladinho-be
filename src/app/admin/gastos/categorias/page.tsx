@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import AdminHeader from '@/components/AdminHeader';
 import { ExpenseCategory } from '@/types';
 
 const ICON_OPTIONS = ['🛒', '⛽', '👷', '📦', '📋', '🏠', '💡', '🚗', '🍳', '🧊', '🧹', '💰', '📱', '🔧', '🎨'];
@@ -80,13 +81,13 @@ export default function CategoriasPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between sticky top-0 z-30 shadow-sm">
-        <div className="flex items-center gap-4">
-          <Link href="/admin/gastos" className="text-gray-500 hover:text-gray-700 font-medium">← Gastos</Link>
-          <span className="text-gray-300">|</span>
-          <h1 className="font-bold text-gray-900">🏷️ Categorias de Gastos</h1>
-        </div>
-      </header>
+      <AdminHeader
+        breadcrumbs={[
+          { label: 'Pedidos', href: '/admin' },
+          { label: 'Gastos', href: '/admin/gastos' },
+          { label: 'Categorias' },
+        ]}
+      />
 
       <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
         {/* Add new */}

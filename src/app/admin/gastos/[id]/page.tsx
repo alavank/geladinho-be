@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import AdminHeader from '@/components/AdminHeader';
 import { Expense } from '@/types';
 import { formatEUR } from '@/lib/flavors';
 
@@ -50,20 +51,22 @@ export default function VisualizarGastoPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-gray-200 bg-white px-6 py-3 shadow-sm">
-        <div className="flex items-center gap-4">
-          <Link href="/admin/gastos" className="font-medium text-gray-500 hover:text-gray-700">← Gastos</Link>
-          <span className="text-gray-300">|</span>
-          <h1 className="font-bold text-gray-900">📋 Detalhe da Compra</h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link href={`/admin/gastos/${id}/editar`} className="btn-primary py-1.5 px-4 text-sm">✏️ Editar</Link>
-          <button onClick={handleDelete} disabled={deletingId === id}
-            className="px-4 py-1.5 text-sm font-semibold text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-40">
-            {deletingId === id ? '⏳' : '🗑️ Excluir'}
-          </button>
-        </div>
-      </header>
+      <AdminHeader
+        breadcrumbs={[
+          { label: 'Pedidos', href: '/admin' },
+          { label: 'Gastos', href: '/admin/gastos' },
+          { label: 'Detalhe da Compra' },
+        ]}
+        actions={
+          <>
+            <Link href={`/admin/gastos/${id}/editar`} className="btn-primary py-1.5 px-4 text-sm">Editar</Link>
+            <button onClick={handleDelete} disabled={deletingId === id}
+              className="px-4 py-1.5 text-sm font-semibold text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-40">
+              {deletingId === id ? 'Excluindo...' : 'Excluir'}
+            </button>
+          </>
+        }
+      />
 
       <div className="mx-auto max-w-3xl px-4 py-6 space-y-5">
         {/* Header info */}

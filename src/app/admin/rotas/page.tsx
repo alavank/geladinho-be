@@ -2,8 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import Image from 'next/image';
+import AdminHeader from '@/components/AdminHeader';
 import { Order, SavedRoute } from '@/types';
 import { formatEUR } from '@/lib/flavors';
 import OrdersMap from '@/components/OrdersMap';
@@ -253,21 +252,19 @@ export default function RotasPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between sticky top-0 z-30 shadow-sm">
-        <div className="flex items-center gap-4">
-          <Link href="/admin" className="text-gray-500 hover:text-gray-700 font-medium">← Pedidos</Link>
-          <span className="text-gray-300">|</span>
-          <Image src="/logo.png" alt="Madame Simone" width={120} height={44} className="h-8 w-auto object-contain hidden sm:block" />
-        </div>
-        <div className="flex items-center gap-3">
-          {view !== 'list' && (
-            <button onClick={() => setView('list')} className="text-sm font-semibold text-gray-600 hover:text-gray-900">
-              ← Rotas Salvas
+      <AdminHeader
+        breadcrumbs={[
+          { label: 'Pedidos', href: '/admin' },
+          { label: 'Rotas de Entrega' },
+        ]}
+        actions={
+          view !== 'list' ? (
+            <button onClick={() => setView('list')} className="text-sm font-semibold text-gray-600 hover:text-gray-900 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50">
+              Rotas Salvas
             </button>
-          )}
-          <h1 className="font-bold text-gray-900">🚗 Rotas</h1>
-        </div>
-      </header>
+          ) : undefined
+        }
+      />
 
       <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
 

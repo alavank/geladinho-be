@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import AdminHeader from '@/components/AdminHeader';
 import { SystemSettings, FlavorConfig, getDefaultSettings } from '@/lib/settings';
 import { formatEUR } from '@/lib/flavors';
 
@@ -96,14 +97,15 @@ export default function ConfiguracoesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-30 shadow-sm">
-        <div className="flex items-center gap-4">
-          <Link href="/admin" className="text-gray-500 hover:text-gray-700 font-medium">← Pedidos</Link>
-          <span className="text-gray-300">|</span>
-          <h1 className="font-bold text-gray-900">⚙️ Configurações — Vendas B2C</h1>
-        </div>
-        <button onClick={handleSave} disabled={saving} className="btn-primary">{saving ? '⏳ Salvando...' : '💾 Salvar'}</button>
-      </header>
+      <AdminHeader
+        breadcrumbs={[
+          { label: 'Pedidos', href: '/admin' },
+          { label: 'Configurações B2C' },
+        ]}
+        actions={
+          <button onClick={handleSave} disabled={saving} className="btn-primary">{saving ? 'Salvando...' : 'Salvar'}</button>
+        }
+      />
 
       <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
 

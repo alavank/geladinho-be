@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
+import AdminHeader from '@/components/AdminHeader';
 import { hasStructuredAddress } from '@/lib/address';
 import {
   getCustomerDisplayName,
@@ -187,41 +187,19 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-gray-200 bg-white px-6 py-3 shadow-sm">
-        <Image src="/logo.png" alt="Madame Simone" width={140} height={50} className="h-10 w-auto object-contain" />
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <Link href="/admin/clientes" className="rounded-lg border border-brand-200 px-3 py-1.5 text-sm font-medium text-brand-700 hover:bg-brand-50 hover:text-brand-900">
-            Clientes
-          </Link>
-          <Link href="/admin/gastos/fornecedores" className="rounded-lg border border-blue-200 px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-50 hover:text-blue-900">
-            Fornecedores
-          </Link>
-          <Link href="/admin/parametros" className="rounded-lg border border-amber-200 px-3 py-1.5 text-sm font-medium text-amber-700 hover:bg-amber-50 hover:text-amber-900">
-            Parametros
-          </Link>
-          <Link href="/admin/gastos" className="rounded-lg border border-orange-200 px-3 py-1.5 text-sm font-medium text-orange-700 hover:bg-orange-50 hover:text-orange-900">
-            Gastos
-          </Link>
-          <Link href="/admin/estoque" className="rounded-lg border border-emerald-200 px-3 py-1.5 text-sm font-medium text-emerald-700 hover:bg-emerald-50 hover:text-emerald-900">
-            Estoque
-          </Link>
-          <Link href="/admin/rotas" className="rounded-lg border border-cyan-200 px-3 py-1.5 text-sm font-medium text-cyan-700 hover:bg-cyan-50 hover:text-cyan-900">
-            Rotas
-          </Link>
-          <Link href="/admin/relatorios" className="rounded-lg border border-purple-200 px-3 py-1.5 text-sm font-medium text-purple-700 hover:bg-purple-50 hover:text-purple-900">
-            Relatorios
-          </Link>
-          <Link href="/admin/configuracoes" className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900">
-            Configuracoes
-          </Link>
-          <button onClick={() => void fetchOrders()} className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-700">
-            Atualizar
-          </button>
-          <button onClick={handleLogout} className="rounded-lg border border-red-200 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 hover:text-red-700">
-            Sair
-          </button>
-        </div>
-      </header>
+      <AdminHeader
+        breadcrumbs={[{ label: 'Pedidos' }]}
+        actions={
+          <>
+            <button onClick={() => void fetchOrders()} className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-700">
+              Atualizar
+            </button>
+            <button onClick={handleLogout} className="rounded-lg border border-red-200 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 hover:text-red-700">
+              Sair
+            </button>
+          </>
+        }
+      />
 
       <div className="mx-auto max-w-7xl px-4 py-8">
         <div className="mb-6 flex flex-wrap gap-2">

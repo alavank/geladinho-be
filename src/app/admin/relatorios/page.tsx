@@ -2,8 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import Image from 'next/image';
+import AdminHeader from '@/components/AdminHeader';
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend
@@ -238,15 +237,15 @@ export default function RelatoriosPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between sticky top-0 z-30 shadow-sm">
-        <div className="flex items-center gap-4">
-          <Link href="/admin" className="text-gray-500 hover:text-gray-700 font-medium">← Pedidos</Link>
-          <span className="text-gray-300">|</span>
-          <Image src="/logo.png" alt="Madame Simone" width={120} height={44} className="h-8 w-auto object-contain" />
-        </div>
-        <h1 className="font-bold text-gray-900 hidden sm:block">📊 Relatórios & BI</h1>
-        <div className="text-xs text-gray-400">{orders.length} pedidos total</div>
-      </header>
+      <AdminHeader
+        breadcrumbs={[
+          { label: 'Pedidos', href: '/admin' },
+          { label: 'Relatorios' },
+        ]}
+        actions={
+          <span className="text-xs text-gray-400">{orders.length} pedidos total</span>
+        }
+      />
 
       <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
 

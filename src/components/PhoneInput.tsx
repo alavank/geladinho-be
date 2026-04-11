@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { SUPPORTED_COUNTRIES, CountryPhone } from '@/lib/phone';
+import { SUPPORTED_COUNTRIES, CountryPhone, getFlagUrl } from '@/lib/phone';
 
 interface Props {
   value: string;
@@ -11,6 +11,19 @@ interface Props {
   className?: string;
   invalid?: boolean;
   placeholder?: string;
+}
+
+function Flag({ code, size = 20 }: { code: string; size?: number }) {
+  return (
+    <img
+      src={getFlagUrl(code)}
+      alt={code}
+      width={size}
+      height={Math.round(size * 0.75)}
+      className="inline-block rounded-sm object-cover"
+      style={{ width: size, height: Math.round(size * 0.75) }}
+    />
+  );
 }
 
 export default function PhoneInput({
@@ -56,7 +69,7 @@ export default function PhoneInput({
         }`}
         title={selected.name}
       >
-        <span className="text-lg leading-none">{selected.flag}</span>
+        <Flag code={selected.code} size={20} />
         <span className="text-gray-700 text-xs font-bold">{selected.code}</span>
         <svg className="h-3 w-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -76,17 +89,17 @@ export default function PhoneInput({
       />
 
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-1 w-56 rounded-xl border border-gray-200 bg-white shadow-lg">
+        <div className="absolute left-0 top-full z-50 mt-1 w-60 rounded-xl border border-gray-200 bg-white shadow-lg">
           {SUPPORTED_COUNTRIES.map((country) => (
             <button
               key={country.code}
               type="button"
               onClick={() => handleSelect(country)}
-              className={`flex w-full items-center gap-3 px-4 py-3 text-left text-sm transition-colors hover:bg-gray-50 first:rounded-t-xl last:rounded-b-xl ${
+              className={`flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors hover:bg-gray-50 first:rounded-t-xl last:rounded-b-xl ${
                 country.code === countryCode ? 'bg-brand-50 font-semibold text-brand-700' : 'text-gray-700'
               }`}
             >
-              <span className="text-lg">{country.flag}</span>
+              <Flag code={country.code} size={22} />
               <span className="w-7 text-xs font-bold text-gray-500">{country.code}</span>
               <span className="flex-1">{country.name}</span>
               <span className="text-xs text-gray-400">{country.dialCode}</span>

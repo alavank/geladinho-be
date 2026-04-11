@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import AdminHeader from '@/components/AdminHeader';
 import { ExpenseCategory, OrderStatusConfig } from '@/types';
 
 const ICON_OPTIONS = ['🛒', '⛽', '👷', '📦', '📋', '🏠', '💡', '🚗', '🍳', '🧊', '🧹', '💰', '📱', '🔧', '🎨'];
@@ -224,13 +224,12 @@ export default function ParametrosPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-gray-200 bg-white px-6 py-3 shadow-sm">
-        <div className="flex items-center gap-4">
-          <Link href="/admin" className="font-medium text-gray-500 hover:text-gray-700">← Admin</Link>
-          <span className="text-gray-300">|</span>
-          <h1 className="font-bold text-gray-900">⚙️ Parâmetros</h1>
-        </div>
-      </header>
+      <AdminHeader
+        breadcrumbs={[
+          { label: 'Pedidos', href: '/admin' },
+          { label: 'Parâmetros' },
+        ]}
+      />
 
       <div className="mx-auto max-w-3xl space-y-6 px-4 py-8">
         <div className="flex gap-3">

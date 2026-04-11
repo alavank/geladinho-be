@@ -7,11 +7,15 @@ export interface CountryPhone {
   code: string;        // ISO 3166-1 alpha-2
   name: string;
   dialCode: string;    // e.g. "+32"
-  flag: string;
   /** Regex patterns for local number (without country code, without leading 0) */
   localPatterns: RegExp[];
   /** Length of local number (digits after country code) */
   localLengths: number[];
+}
+
+/** Get flag image URL for a country code via flagcdn.com */
+export function getFlagUrl(code: string): string {
+  return `https://flagcdn.com/w40/${code.toLowerCase()}.png`;
 }
 
 export const SUPPORTED_COUNTRIES: CountryPhone[] = [
@@ -19,7 +23,7 @@ export const SUPPORTED_COUNTRIES: CountryPhone[] = [
     code: 'BE',
     name: 'Bélgica',
     dialCode: '+32',
-    flag: '🇧🇪',
+
     localPatterns: [/^\d{8,9}$/],
     localLengths: [8, 9],
   },
@@ -27,7 +31,7 @@ export const SUPPORTED_COUNTRIES: CountryPhone[] = [
     code: 'LU',
     name: 'Luxemburgo',
     dialCode: '+352',
-    flag: '🇱🇺',
+
     localPatterns: [/^\d{6,9}$/],
     localLengths: [6, 7, 8, 9],
   },
@@ -35,7 +39,7 @@ export const SUPPORTED_COUNTRIES: CountryPhone[] = [
     code: 'FR',
     name: 'França',
     dialCode: '+33',
-    flag: '🇫🇷',
+
     localPatterns: [/^\d{9}$/],
     localLengths: [9],
   },
@@ -43,7 +47,7 @@ export const SUPPORTED_COUNTRIES: CountryPhone[] = [
     code: 'NL',
     name: 'Holanda',
     dialCode: '+31',
-    flag: '🇳🇱',
+
     localPatterns: [/^\d{9}$/],
     localLengths: [9],
   },
@@ -51,7 +55,7 @@ export const SUPPORTED_COUNTRIES: CountryPhone[] = [
     code: 'DE',
     name: 'Alemanha',
     dialCode: '+49',
-    flag: '🇩🇪',
+
     localPatterns: [/^\d{7,12}$/],
     localLengths: [7, 8, 9, 10, 11, 12],
   },
@@ -59,7 +63,7 @@ export const SUPPORTED_COUNTRIES: CountryPhone[] = [
     code: 'PT',
     name: 'Portugal',
     dialCode: '+351',
-    flag: '🇵🇹',
+
     localPatterns: [/^\d{9}$/],
     localLengths: [9],
   },

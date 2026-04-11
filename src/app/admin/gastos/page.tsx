@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
+import AdminHeader from '@/components/AdminHeader';
 import { Expense, ExpenseCategory, Supplier } from '@/types';
 import { formatEUR } from '@/lib/flavors';
 
@@ -126,22 +126,23 @@ export default function GastosPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between sticky top-0 z-30 shadow-sm">
-        <div className="flex items-center gap-4">
-          <Link href="/admin" className="text-gray-500 hover:text-gray-700 font-medium">← Pedidos</Link>
-          <span className="text-gray-300">|</span>
-          <Image src="/logo.png" alt="Madame Simone" width={120} height={44} className="h-8 w-auto object-contain hidden sm:block" />
-        </div>
-        <div className="flex items-center gap-2">
-          <Link href="/admin/gastos/categorias" className="text-sm text-gray-600 hover:text-gray-900 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50 font-medium">
-            🏷️ Categorias
-          </Link>
-          <Link href="/admin/gastos/fornecedores" className="text-sm text-gray-600 hover:text-gray-900 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50 font-medium">
-            🏬 Fornecedores
-          </Link>
-          <Link href="/admin/gastos/novo" className="btn-primary py-1.5 px-4 text-sm">+ Nova Compra</Link>
-        </div>
-      </header>
+      <AdminHeader
+        breadcrumbs={[
+          { label: 'Pedidos', href: '/admin' },
+          { label: 'Compras e Gastos' },
+        ]}
+        actions={
+          <>
+            <Link href="/admin/gastos/categorias" className="text-sm text-gray-600 hover:text-gray-900 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50 font-medium">
+              Categorias
+            </Link>
+            <Link href="/admin/gastos/fornecedores" className="text-sm text-gray-600 hover:text-gray-900 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50 font-medium">
+              Fornecedores
+            </Link>
+            <Link href="/admin/gastos/novo" className="btn-primary py-1.5 px-4 text-sm">+ Nova Compra</Link>
+          </>
+        }
+      />
 
       <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
         {/* Filters */}

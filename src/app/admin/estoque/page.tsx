@@ -2,8 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import Image from 'next/image';
+import AdminHeader from '@/components/AdminHeader';
 import { FLAVORS } from '@/lib/flavors';
 import {
   ProductionBatch,
@@ -144,14 +143,12 @@ export default function EstoquePage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between sticky top-0 z-30 shadow-sm">
-        <div className="flex items-center gap-4">
-          <Link href="/admin" className="text-gray-500 hover:text-gray-700 font-medium">← Pedidos</Link>
-          <span className="text-gray-300">|</span>
-          <Image src="/logo.png" alt="Madame Simone" width={120} height={44} className="h-8 w-auto object-contain hidden sm:block" />
-        </div>
-        <h1 className="font-bold text-gray-900">📦 Estoque & Produção</h1>
-      </header>
+      <AdminHeader
+        breadcrumbs={[
+          { label: 'Pedidos', href: '/admin' },
+          { label: 'Estoque & Produção' },
+        ]}
+      />
 
       <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
         {/* Tabs */}

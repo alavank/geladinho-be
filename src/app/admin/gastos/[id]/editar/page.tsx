@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
+import AdminHeader from '@/components/AdminHeader';
 import ExpensePurchaseForm, {
   ExpensePayload,
 } from '@/components/ExpensePurchaseForm';
@@ -85,15 +85,14 @@ export default function EditarGastoPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-gray-200 bg-white px-6 py-3 shadow-sm">
-        <div className="flex items-center gap-4">
-          <Link href={`/admin/gastos/${id}`} className="font-medium text-gray-500 hover:text-gray-700">
-            ← Voltar
-          </Link>
-          <span className="text-gray-300">|</span>
-          <h1 className="font-bold text-gray-900">✏️ Editar Compra</h1>
-        </div>
-      </header>
+      <AdminHeader
+        breadcrumbs={[
+          { label: 'Pedidos', href: '/admin' },
+          { label: 'Gastos', href: '/admin/gastos' },
+          { label: 'Detalhe', href: `/admin/gastos/${id}` },
+          { label: 'Editar' },
+        ]}
+      />
 
       <div className="mx-auto max-w-5xl px-4 py-6">
         <ExpensePurchaseForm

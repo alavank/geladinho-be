@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import AdminHeader from '@/components/AdminHeader';
 import { SystemSettings, FlavorConfig, getDefaultSettings } from '@/lib/settings';
 import { formatEUR } from '@/lib/flavors';
 
@@ -102,17 +103,16 @@ export default function ConfigB2BPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-30 shadow-sm">
-        <div className="flex items-center gap-3">
-          <Link href="/admin/configuracoes" className="text-gray-500 hover:text-gray-700">← Configurações B2C</Link>
-          <span className="text-gray-300">|</span>
-          <h1 className="font-bold text-gray-900">🏪 Configurações B2B — Revenda</h1>
-        </div>
-        <button onClick={handleSave} disabled={saving} className="text-white font-semibold px-5 py-2.5 rounded-xl transition-all shadow-md disabled:opacity-50"
-          style={{ background: 'linear-gradient(135deg, #0EA5E9, #0369A1)' }}>
-          {saving ? '⏳ Salvando...' : '💾 Salvar'}
-        </button>
-      </header>
+      <AdminHeader
+        breadcrumbs={[
+          { label: 'Pedidos', href: '/admin' },
+          { label: 'Config B2C', href: '/admin/configuracoes' },
+          { label: 'Configurações B2B' },
+        ]}
+        actions={
+          <button onClick={handleSave} disabled={saving} className="btn-primary">{saving ? 'Salvando...' : 'Salvar'}</button>
+        }
+      />
 
       <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
         {saved && <div className="bg-green-50 border border-green-300 text-green-800 rounded-xl p-4 font-semibold">✅ Salvo! As alterações já aparecem no portal de revenda.</div>}

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import AdminHeader from '@/components/AdminHeader';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
 import { hasStructuredAddress } from '@/lib/address';
 import {
@@ -340,22 +341,27 @@ export default function OrderDetailPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="sticky top-0 z-30 flex items-center gap-4 border-b border-gray-200 bg-white px-6 py-4 shadow-sm">
-        <Link href="/admin" className="text-gray-500 hover:text-gray-700">← Pedidos</Link>
-        <span className="text-gray-300">|</span>
-        <h1 className="font-bold text-gray-900">Pedido #{shortId}</h1>
-        {isB2B && (
-          <span className="inline-flex rounded-full bg-blue-100 px-2 py-1 text-xs font-bold text-blue-800">
-            B2B
-          </span>
-        )}
-        <span
-          className="ml-auto inline-flex rounded-full px-3 py-1 text-sm font-semibold"
-          style={getStatusBadgeStyle(order.status, statusConfigs)}
-        >
-          {currentStatus.label}
-        </span>
-      </header>
+      <AdminHeader
+        breadcrumbs={[
+          { label: 'Pedidos', href: '/admin' },
+          { label: `Pedido #${shortId}` },
+        ]}
+        actions={
+          <div className="flex items-center gap-2">
+            {isB2B && (
+              <span className="inline-flex rounded-full bg-blue-100 px-2 py-1 text-xs font-bold text-blue-800">
+                B2B
+              </span>
+            )}
+            <span
+              className="inline-flex rounded-full px-3 py-1 text-sm font-semibold"
+              style={getStatusBadgeStyle(order.status, statusConfigs)}
+            >
+              {currentStatus.label}
+            </span>
+          </div>
+        }
+      />
 
       <div className="mx-auto max-w-5xl space-y-6 px-4 py-8">
         <div className="flex flex-wrap gap-3">
