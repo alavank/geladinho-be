@@ -306,7 +306,7 @@ export default function OrderDetailPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <p className="mb-4 text-red-600">{pageError}</p>
-          <Link href="/admin" className="btn-secondary">← Voltar</Link>
+          <Link href="/admin" scroll={false} className="btn-secondary">← Voltar</Link>
         </div>
       </div>
     );

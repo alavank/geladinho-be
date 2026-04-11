@@ -59,7 +59,7 @@ export default function VisualizarGastoPage() {
         ]}
         actions={
           <>
-            <Link href={`/admin/gastos/${id}/editar`} className="btn-primary py-1.5 px-4 text-sm">Editar</Link>
+            <Link href={`/admin/gastos/${id}/editar`} scroll={false} className="btn-primary py-1.5 px-4 text-sm">Editar</Link>
             <button onClick={handleDelete} disabled={deletingId === id}
               className="px-4 py-1.5 text-sm font-semibold text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-40">
               {deletingId === id ? 'Excluindo...' : 'Excluir'}
@@ -161,7 +161,7 @@ export default function VisualizarGastoPage() {
 
         {/* Confirm button */}
         <div className="pt-2 pb-8">
-          <Link href="/admin/gastos"
+          <Link href="/admin/gastos" scroll={false}
             className="btn-primary w-full py-3 text-center block text-lg font-bold rounded-xl">
             ✅ Confirmar e voltar para Gastos
           </Link>

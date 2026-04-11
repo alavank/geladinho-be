@@ -133,13 +133,13 @@ export default function GastosPage() {
         ]}
         actions={
           <>
-            <Link href="/admin/gastos/categorias" className="text-sm text-gray-600 hover:text-gray-900 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50 font-medium">
+            <Link href="/admin/gastos/categorias" scroll={false} className="text-sm text-gray-600 hover:text-gray-900 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50 font-medium">
               Categorias
             </Link>
-            <Link href="/admin/gastos/fornecedores" className="text-sm text-gray-600 hover:text-gray-900 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50 font-medium">
+            <Link href="/admin/gastos/fornecedores" scroll={false} className="text-sm text-gray-600 hover:text-gray-900 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50 font-medium">
               Fornecedores
             </Link>
-            <Link href="/admin/gastos/novo" className="btn-primary py-1.5 px-4 text-sm">+ Nova Compra</Link>
+            <Link href="/admin/gastos/novo" scroll={false} className="btn-primary py-1.5 px-4 text-sm">+ Nova Compra</Link>
           </>
         }
       />
@@ -193,7 +193,7 @@ export default function GastosPage() {
           <div className="card p-12 text-center text-gray-400">
             <p className="text-4xl mb-3">💸</p>
             <p>Nenhuma compra encontrada no período.</p>
-            <Link href="/admin/gastos/novo" className="inline-block mt-4 btn-primary py-2 px-6 text-sm">Registrar primeira compra</Link>
+            <Link href="/admin/gastos/novo" scroll={false} className="inline-block mt-4 btn-primary py-2 px-6 text-sm">Registrar primeira compra</Link>
           </div>
         ) : (
           <div className="card overflow-hidden">
@@ -240,7 +240,7 @@ export default function GastosPage() {
                       <td className="px-4 py-3 font-bold text-orange-600 whitespace-nowrap">{formatEUR(expense.amount_eur_cents)}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
-                          <Link href={`/admin/gastos/${expense.id}`} className="text-blue-600 hover:text-blue-800 font-semibold text-xs">Ver</Link>
+                          <Link href={`/admin/gastos/${expense.id}`} scroll={false} className="text-blue-600 hover:text-blue-800 font-semibold text-xs">Ver</Link>
                           <button onClick={() => handleDelete(expense.id)} disabled={deletingId === expense.id}
                             className="text-red-400 hover:text-red-600 hover:bg-red-50 p-1 rounded-lg transition-colors disabled:opacity-40" title="Excluir">
                             {deletingId === expense.id ? '⏳' : '🗑️'}

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import '../globals.css';
 import { PWARegister } from './pwa-register';
+import AdminSpaShell from '@/components/admin/AdminSpaShell';
 
 export const metadata: Metadata = {
   title: 'Admin — Madame Simone',
@@ -22,7 +23,7 @@ export const viewport: Viewport = {
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-gray-100">
-      {children}
+      <AdminSpaShell>{children}</AdminSpaShell>
       <PWARegister />
     </div>
   );

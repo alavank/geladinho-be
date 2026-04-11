@@ -110,7 +110,7 @@ export default function ConfiguracoesPage() {
       <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
 
         {/* Link to B2B */}
-        <Link href="/admin/configuracoes/b2b"
+        <Link href="/admin/configuracoes/b2b" scroll={false}
           className="flex items-center justify-between p-4 rounded-xl border-2 border-blue-200 bg-blue-50 hover:bg-blue-100 transition-all">
           <div className="flex items-center gap-3">
             <span className="text-2xl">🏪</span>

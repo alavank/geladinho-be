@@ -37,7 +37,7 @@ export default function AdminHeader({ breadcrumbs, actions }: Props) {
     <header className="sticky top-0 z-30 border-b border-gray-200 bg-white shadow-sm">
       {/* Top bar: logo + nav links */}
       <div className="flex items-center justify-between px-4 py-2 md:px-6">
-        <Link href="/admin" className="shrink-0">
+        <Link href="/admin" scroll={false} className="shrink-0">
           <Image src="/logo.png" alt="Madame Simone" width={120} height={44} className="h-8 w-auto object-contain" />
         </Link>
 
@@ -48,6 +48,7 @@ export default function AdminHeader({ breadcrumbs, actions }: Props) {
               <Link
                 key={link.href}
                 href={link.href}
+                scroll={false}
                 className={`rounded-lg border px-2.5 py-1 text-xs font-semibold transition-colors ${
                   active
                     ? `${link.accent} bg-opacity-100 border-current`
@@ -72,7 +73,7 @@ export default function AdminHeader({ breadcrumbs, actions }: Props) {
                   <span key={i} className="flex items-center gap-1.5">
                     {i > 0 && <span className="text-gray-300">/</span>}
                     {crumb.href && !isLast ? (
-                      <Link href={crumb.href} className="font-medium text-gray-500 hover:text-gray-700">
+                      <Link href={crumb.href} scroll={false} className="font-medium text-gray-500 hover:text-gray-700">
                         {crumb.label}
                       </Link>
                     ) : (

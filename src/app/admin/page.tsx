@@ -309,7 +309,7 @@ export default function AdminPage() {
                           >
                             Vincular
                           </button>
-                          <Link href={`/admin/pedidos/${order.id}`} className="whitespace-nowrap text-xs font-semibold text-brand-600 hover:text-brand-800">
+                          <Link href={`/admin/pedidos/${order.id}`} scroll={false} className="whitespace-nowrap text-xs font-semibold text-brand-600 hover:text-brand-800">
                             Ver →
                           </Link>
                         </div>
@@ -369,7 +369,7 @@ export default function AdminPage() {
 
               {modalCustomers.length === 0 && (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                  Nenhum cliente cadastrado para este tipo de pedido. Cadastre primeiro em <Link href="/admin/clientes" className="font-semibold underline">Clientes</Link>.
+                  Nenhum cliente cadastrado para este tipo de pedido. Cadastre primeiro em <Link href="/admin/clientes" scroll={false} className="font-semibold underline">Clientes</Link>.
                 </div>
               )}
 
