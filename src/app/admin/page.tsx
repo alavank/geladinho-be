@@ -139,45 +139,6 @@ export default function AdminPage() {
       city: selectedCustomer.address_city || '',
     });
 
-  const adminShortcuts = [
-    {
-      href: '/admin/clientes',
-      title: 'Clientes',
-      description: 'Cadastre clientes finais e revendas para reutilizar nos pedidos.',
-      accent: 'border-brand-200 bg-brand-50 text-brand-700',
-    },
-    {
-      href: '/admin/gastos/fornecedores',
-      title: 'Fornecedores',
-      description: 'Centralize os fornecedores e os enderecos completos usados nas compras.',
-      accent: 'border-blue-200 bg-blue-50 text-blue-700',
-    },
-    {
-      href: '/admin/parametros',
-      title: 'Parametros',
-      description: 'Ajuste tipos de gasto e a apresentacao dos status dos pedidos.',
-      accent: 'border-amber-200 bg-amber-50 text-amber-700',
-    },
-    {
-      href: '/admin/gastos',
-      title: 'Compras e Gastos',
-      description: 'Acesse o financeiro com notas, compras completas e leitura automatica.',
-      accent: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-    },
-    {
-      href: '/admin/estoque',
-      title: 'Estoque & Produção',
-      description: 'Registre produção, acompanhe estoque por sabor e faça ajustes manuais.',
-      accent: 'border-orange-200 bg-orange-50 text-orange-700',
-    },
-    {
-      href: '/admin/rotas',
-      title: 'Rotas de Entrega',
-      description: 'Monte rotas com os pedidos do dia e navegue com Google Maps ou Waze.',
-      accent: 'border-cyan-200 bg-cyan-50 text-cyan-700',
-    },
-  ];
-
   const handleConfirmBinding = async () => {
     if (!linkingOrder || !selectedCustomer) return;
     if (!selectedCustomerHasStructuredAddress) {
@@ -263,29 +224,6 @@ export default function AdminPage() {
       </header>
 
       <div className="mx-auto max-w-7xl px-4 py-8">
-        <section className="mb-8">
-          <div className="mb-4">
-            <h2 className="text-xl font-bold text-gray-900">Cadastros Gerais</h2>
-            <p className="text-sm text-gray-500">Atalhos rapidos para os cadastros principais e parametros do sistema.</p>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {adminShortcuts.map((shortcut) => (
-              <Link
-                key={shortcut.href}
-                href={shortcut.href}
-                className="card block border border-gray-200 p-5 transition-all hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-md"
-              >
-                <div className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${shortcut.accent}`}>
-                  {shortcut.title}
-                </div>
-                <p className="mt-4 text-base font-bold text-gray-900">{shortcut.title}</p>
-                <p className="mt-2 text-sm leading-6 text-gray-500">{shortcut.description}</p>
-              </Link>
-            ))}
-          </div>
-        </section>
-
         <div className="mb-6 flex flex-wrap gap-2">
           {([
             { key: 'all', label: `Todos (${orders.length})` },

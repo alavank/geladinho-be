@@ -49,7 +49,7 @@ export default function PhoneInput({
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className={`flex items-center gap-1 rounded-l-xl border-2 border-r-0 px-3 py-3 text-sm font-semibold transition-colors hover:bg-gray-50 ${
+        className={`flex items-center gap-1.5 rounded-l-xl border-2 border-r-0 px-3 py-3 text-sm font-semibold transition-colors hover:bg-gray-50 ${
           invalid
             ? 'border-red-400 bg-red-50'
             : 'border-gray-200 bg-gray-50'
@@ -57,7 +57,7 @@ export default function PhoneInput({
         title={selected.name}
       >
         <span className="text-lg leading-none">{selected.flag}</span>
-        <span className="text-gray-600 text-xs">{selected.dialCode}</span>
+        <span className="text-gray-700 text-xs font-bold">{selected.code}</span>
         <svg className="h-3 w-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
@@ -87,6 +87,7 @@ export default function PhoneInput({
               }`}
             >
               <span className="text-lg">{country.flag}</span>
+              <span className="w-7 text-xs font-bold text-gray-500">{country.code}</span>
               <span className="flex-1">{country.name}</span>
               <span className="text-xs text-gray-400">{country.dialCode}</span>
             </button>
