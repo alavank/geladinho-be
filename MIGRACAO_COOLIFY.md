@@ -59,11 +59,11 @@ No Service Supabase → **Environment Variables** → **Developer view**, copia 
 | Variável no Supabase | Onde será usada |
 |---|---|
 | `SERVICE_SUPABASESERVICE_KEY` | ⭐ Será `SUPABASE_SERVICE_ROLE_KEY` da Application (Checkpoint 4) |
-| `SERVICE_USER_SUPABASEDASHBOARD` | Login do Studio |
-| `SERVICE_PASSWORD_SUPABASEDASHBOARD` | Senha do Studio |
+| `SERVICE_USER_ADMIN` | Login do Studio (referenciado por `DASHBOARD_USERNAME=${SERVICE_USER_ADMIN}`) |
+| `SERVICE_PASSWORD_ADMIN` | Senha do Studio (referenciado por `DASHBOARD_PASSWORD=${SERVICE_PASSWORD_ADMIN}`) |
 | `SERVICE_PASSWORD_POSTGRES` | Conexão direta ao Postgres (se necessário) |
 
-> Nomes podem variar levemente entre versões. Procurar palavras-chave: `SERVICE_KEY`, `DASHBOARD`, `POSTGRES_PASSWORD`.
+> Bônus opcional: `SERVICE_SUPABASEANON_KEY` (anon key — app não usa, mas boa prática ter) e `SERVICE_PASSWORD_JWT` (JWT secret interno do GoTrue, diferente do `JWT_SECRET` do app).
 
 ### 2b. Rodar 12 migrations em ordem no Studio
 
