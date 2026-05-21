@@ -12,7 +12,7 @@
 
 - **VPS Hetzner:** `5.78.42.251`
 - **Coolify dashboard:** `http://5.78.42.251:8000`
-- **Project no Coolify:** `geladinho-be` (environment: `production`)
+- **Project no Coolify:** `geladinho` (environment: `production`)
 
 ### URLs sslip.io (prefixo: `geladinho`)
 
@@ -97,7 +97,7 @@ Pra cada arquivo abaixo: abrir Raw, copiar tudo, colar no SQL Editor, Run, esper
 
 ## 🔜 Checkpoint 3 — Criar Application
 
-No project `geladinho-be` → **+ Add Resource**:
+No project `geladinho` → **+ Add Resource**:
 
 **Se ainda não tem GitHub App configurada no Coolify:**
 1. Sidebar **Sources** → **+ Add** → **GitHub** → instalar GitHub App → autorizar repo `alavank/geladinho-be`
