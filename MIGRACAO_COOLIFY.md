@@ -199,6 +199,25 @@ Quando tudo estiver verde no Coolify:
 
 ---
 
+## 🔜 Pós-migração (backlog)
+
+### URLs separadas por persona
+
+Hoje tudo está em `https://geladinho-app-5-78-42-251.sslip.io` (cliente em `/`, admin em `/admin`, revenda em `/revenda`).
+
+Desejado:
+- `https://pedir-geladinho-5-78-42-251.sslip.io` → cliente (`/`)
+- `https://geladinho-magasin-5-78-42-251.sslip.io` → revenda (rewrite pra `/revenda`)
+- `https://geladinho-5-78-42-251.sslip.io` → admin (rewrite pra `/admin`)
+
+Como fazer:
+1. No Coolify, adicionar os 3 domains no campo `Domains for app` (uma URL por linha, todas com `:3000`)
+2. Estender `src/middleware.ts` pra ler `request.headers.get('host')` e fazer `NextResponse.rewrite()` baseado no host
+3. Escopar cookie `admin_session` pelo host de admin (em `src/lib/auth.ts`)
+4. Conferir se notificações Telegram têm links absolutos — ajustar pra host correto
+
+---
+
 ## Referências
 
 - [PLAYBOOK_COOLIFY.md](PLAYBOOK_COOLIFY.md) — playbook completo (armadilhas, decisões, motivações)
