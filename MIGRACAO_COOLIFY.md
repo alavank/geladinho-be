@@ -2,17 +2,19 @@
 
 > Documento vivo, fonte de verdade pra continuar a migração de qualquer máquina (casa ou trabalho). Após `git pull`, leia este arquivo.
 
-**Status:** ⏸️ Pausado no Checkpoint 2 (coletar segredos + rodar migrations)
+**Status:** ✅ App rodando em produção no Coolify com dados reais migrados do Cloud. **Falta apenas Checkpoint 8 (desligar Railway)**.
 
-**Última atualização:** 2026-05-20
+**Última atualização:** 2026-05-21
 
 ---
 
 ## Infra alvo
 
-- **VPS Hetzner:** `5.78.42.251`
+- **VPS Hetzner Cloud:** `5.78.42.251` (CPX51, Ubuntu 24.04, Hillsboro/OR — `alavank-server` / hostname `coolify-frotas`)
 - **Coolify dashboard:** `http://5.78.42.251:8000`
 - **Project no Coolify:** `geladinho` (environment: `production`)
+- **Container Postgres do projeto:** `supabase-db-rtnlbe2fqtlotqdpyufwgwes`
+- **Container PostgREST:** `supabase-rest-rtnlbe2fqtlotqdpyufwgwes`
 
 ### URLs sslip.io (prefixo: `geladinho`)
 
@@ -24,178 +26,46 @@
 
 ---
 
-## ✅ Parte A — Código preparado
+## ✅ Checkpoints concluídos (1–7 + migração de dados)
 
-Commit `bdf00fb` em `origin/main`. Arquivos adicionados/editados:
-
-- `Dockerfile` — multi-stage com Next.js `output: 'standalone'`
-- `docker-compose.yml` — `expose: 3000` (não `ports:`) + 10 env vars
-- `.dockerignore`
-- `next.config.js` — `output: 'standalone'` + remoção de `experimental.serverActions` (não usado)
-- `.env.example` — adiciona `GEMINI_API_KEY`, remove `NEXTAUTH_URL` obsoleto
-- `PLAYBOOK_COOLIFY.md` — playbook de referência
-
-### ⚠️ Atenção Railway
-
-O commit acima foi pro repo oficial. **Railway pode tentar buildar com o Dockerfile novo e quebrar.** Recomendado **desligar Auto Deploy no Railway** (Settings → Service) até a migração terminar. O serviço em produção continua rodando normal enquanto o auto-deploy estiver desligado.
-
----
-
-## ✅ Checkpoint 1 — Project + Supabase Service
-
-Concluído. Supabase rodando `Running (healthy)` no Coolify com:
-
-- Domínios sslip.io configurados (Kong `:8000`, Studio `:3000`)
-- Env vars ajustadas: `API_EXTERNAL_URL`, `GOTRUE_SITE_URL`, `DISABLE_SIGNUP=true`, `ENABLE_EMAIL_SIGNUP=true`, `ENABLE_EMAIL_AUTOCONFIRM=true`, `ENABLE_PHONE_SIGNUP=false`, `ENABLE_PHONE_AUTOCONFIRM=false`
-
----
-
-## ⏸️ Checkpoint 2 — Próximo passo ao retomar
-
-### 2a. Coletar 4 segredos do Service Supabase
-
-No Service Supabase → **Environment Variables** → **Developer view**, copia pra gerenciador de senhas:
-
-| Variável no Supabase | Onde será usada |
-|---|---|
-| `SERVICE_SUPABASESERVICE_KEY` | ⭐ Será `SUPABASE_SERVICE_ROLE_KEY` da Application (Checkpoint 4) |
-| `SERVICE_USER_ADMIN` | Login do Studio (referenciado por `DASHBOARD_USERNAME=${SERVICE_USER_ADMIN}`) |
-| `SERVICE_PASSWORD_ADMIN` | Senha do Studio (referenciado por `DASHBOARD_PASSWORD=${SERVICE_PASSWORD_ADMIN}`) |
-| `SERVICE_PASSWORD_POSTGRES` | Conexão direta ao Postgres (se necessário) |
-
-> Bônus opcional: `SERVICE_SUPABASEANON_KEY` (anon key — app não usa, mas boa prática ter) e `SERVICE_PASSWORD_JWT` (JWT secret interno do GoTrue, diferente do `JWT_SECRET` do app).
-
-### 2b. Rodar 12 migrations em ordem no Studio
-
-1. Acessar `https://geladinho-studio-5-78-42-251.sslip.io`
-2. Login com `SERVICE_USER_SUPABASEDASHBOARD` / `SERVICE_PASSWORD_SUPABASEDASHBOARD`
-3. **SQL Editor** → **+ New query**
-
-Pra cada arquivo abaixo: abrir Raw, copiar tudo, colar no SQL Editor, Run, esperar "Success" antes do próximo:
-
-| # | Arquivo | Link Raw |
+| # | O que | Status |
 |---|---|---|
-| 1 | `migration.sql` | https://raw.githubusercontent.com/alavank/geladinho-be/main/supabase/migration.sql |
-| 2 | `migration_v2.sql` | https://raw.githubusercontent.com/alavank/geladinho-be/main/supabase/migration_v2.sql |
-| 3 | `migration_v3.sql` | https://raw.githubusercontent.com/alavank/geladinho-be/main/supabase/migration_v3.sql |
-| 4 | `migration_v4.sql` | https://raw.githubusercontent.com/alavank/geladinho-be/main/supabase/migration_v4.sql |
-| 5 | `migration_v5.sql` | https://raw.githubusercontent.com/alavank/geladinho-be/main/supabase/migration_v5.sql |
-| 6 | `migration_v6_expenses.sql` | https://raw.githubusercontent.com/alavank/geladinho-be/main/supabase/migration_v6_expenses.sql |
-| 7 | `migration_v7_geocoding.sql` | https://raw.githubusercontent.com/alavank/geladinho-be/main/supabase/migration_v7_geocoding.sql |
-| 8 | `migration_v8_expense_receipts.sql` | https://raw.githubusercontent.com/alavank/geladinho-be/main/supabase/migration_v8_expense_receipts.sql |
-| 9 | `migration_v9_admin_registry.sql` | https://raw.githubusercontent.com/alavank/geladinho-be/main/supabase/migration_v9_admin_registry.sql |
-| 10 | `migration_v10_stock.sql` | https://raw.githubusercontent.com/alavank/geladinho-be/main/supabase/migration_v10_stock.sql |
-| 11 | `migration_v11_custom_statuses.sql` | https://raw.githubusercontent.com/alavank/geladinho-be/main/supabase/migration_v11_custom_statuses.sql |
-| 12 | `migration_v12_saved_routes.sql` | https://raw.githubusercontent.com/alavank/geladinho-be/main/supabase/migration_v12_saved_routes.sql |
+| **A** | Código preparado (Dockerfile, docker-compose, .dockerignore, next.config standalone, .env.example) — commit `bdf00fb` | ✅ |
+| **1** | Project Coolify + Service Supabase com domains sslip.io + env vars (Kong, Studio, GoTrue) | ✅ |
+| **2** | 4 segredos coletados + 12 migrations rodadas no Studio em ordem | ✅ |
+| **3** | Application via GitHub App (`alavank-coolify` Source) apontando pra `alavank/geladinho-be:main`, Docker Compose | ✅ |
+| **4** | 10 env vars configuradas (com `NEXT_PUBLIC_GOOGLE_PLACES_API_KEY` como **Build Variable**) | ✅ |
+| **5** | Smoke test: app carrega, login admin OK | ✅ |
+| **6** | Auto-deploy on push via GitHub Source (testado e funcionando) | ✅ |
+| **7** | Backup nightly (`backup-postgres-diario`, cron `0 2 * * *`) executado com sucesso | ✅ |
+| **Extra** | **Dados reais do Supabase Cloud migrados** (48 pedidos, 830 itens, 13 clientes, 63 gastos, 55 production_batches) | ✅ |
 
-**Armadilhas conhecidas:**
+### Commits relevantes nesta migração
 
-- `cannot drop columns from view` → adicionar `DROP VIEW IF EXISTS nome_da_view CASCADE;` antes do `CREATE OR REPLACE VIEW`
-- `cannot drop column ... because other objects depend` → mudar `DROP COLUMN x` para `DROP COLUMN x CASCADE`
-
----
-
-## 🔜 Checkpoint 3 — Criar Application
-
-No project `geladinho` → **+ Add Resource**:
-
-**Se ainda não tem GitHub App configurada no Coolify:**
-1. Sidebar **Sources** → **+ Add** → **GitHub** → instalar GitHub App → autorizar repo `alavank/geladinho-be`
-2. Voltar ao project → **+ Add Resource** → **Private Repository (with GitHub App)**
-
-**Caso contrário:** **+ Add Resource** → **Public Repository** (depois trocamos pra GitHub Source no Checkpoint 6).
-
-Configurações:
-
-- **Repository URL:** `https://github.com/alavank/geladinho-be`
-- **Branch:** `main`
-- **Build Pack:** `Docker Compose`
-- **Base Directory:** `/`
-- **Docker Compose Location:** `/docker-compose.yml`
-
-**Domains** (Configuration):
-```
-https://geladinho-app-5-78-42-251.sslip.io:3000
-```
+- `bdf00fb` — containerização inicial (Dockerfile, docker-compose, .dockerignore)
+- `2180073` — fix Supabase client lazy init (evita throw em build time)
+- `b4e0b2d` — fix healthcheck (`wget --spider` → `node -e` http.get)
+- `de3df75` — backlog: URLs separadas por persona (commit que testou auto-deploy)
 
 ---
 
-## 🔜 Checkpoint 4 — Env Vars da Application
+## ⏸️ Checkpoint 8 — Próximo passo (cutover Railway)
 
-Coolify pré-cria as vars vazias a partir do `docker-compose.yml`. Preencher:
+Tudo está rodando no Coolify com dados reais. Falta só desligar o Railway pra concluir a migração.
 
-| Key | Value | Notas |
-|---|---|---|
-| `SUPABASE_URL` | `https://geladinho-api-5-78-42-251.sslip.io` | |
-| `SUPABASE_SERVICE_ROLE_KEY` | (`SERVICE_SUPABASESERVICE_KEY` do Checkpoint 2a) | |
-| `ADMIN_USER` | `admin` | |
-| `ADMIN_PASS` | (do gerenciador de senhas — gerado em sessão anterior) | Se perdeu, peça novo |
-| `JWT_SECRET` | (do gerenciador de senhas — gerado em sessão anterior) | Se perdeu, peça novo |
-| `TELEGRAM_BOT_TOKEN` | (do Railway atual ou BotFather) | |
-| `TELEGRAM_CHAT_ID` | (do Railway atual) | |
-| `GOOGLE_PLACES_API_KEY` | (do Railway atual) | |
-| `NEXT_PUBLIC_GOOGLE_PLACES_API_KEY` | (mesma do Google Places acima) | ⚠️ **MARCAR como Build Variable** |
-| `GEMINI_API_KEY` | (sua key) | |
+### O que fazer
 
-⚠️ **Crítico:** `NEXT_PUBLIC_GOOGLE_PLACES_API_KEY` precisa estar marcada como **Build Variable** na UI do Coolify. Sem isso, o autocomplete de endereço fica vazio no front (Vite/Next inlina vars `NEXT_PUBLIC_*` em build time, não em runtime).
+1. **Login no Railway** (railway.app)
+2. Localizar o projeto antigo do `geladinho-be`
+3. **Pausar ou deletar** o serviço:
+   - **Pausar** (recomendado primeiro, ~1 semana): vai pro estado idle, sem cobrança, mantém config caso precise voltar
+   - **Deletar** depois de confirmar que tudo está OK no Coolify por uns dias
+4. Se houver domínio próprio apontando pro Railway (não é o caso atual — usamos sslip.io):
+   - Atualizar DNS A record pra `5.78.42.251`
+   - Aguardar propagação (~5min–48h dependendo do TTL)
+5. (Opcional) Atualizar `README.md`: substituir seção "🚂 Deploy no Railway" por nova seção apontando pro `PLAYBOOK_COOLIFY.md` e este arquivo
 
-Save All → **Deploy**.
-
----
-
-## 🔜 Checkpoint 5 — Smoke test
-
-- `https://geladinho-app-5-78-42-251.sslip.io` carrega o cardápio
-- DevTools console limpo (sem 404/CORS)
-- Adicionar 50+ unidades ao carrinho → submeter pedido → notificação Telegram chega
-- `/admin/login` aceita `ADMIN_USER`/`ADMIN_PASS` → dashboard `/admin` abre
-- Rota admin sem login → redireciona pra `/admin/login` (middleware OK)
-- Quick-scan de nota fiscal funciona (testa `GEMINI_API_KEY`)
-
----
-
-## 🔜 Checkpoint 6 — Auto-deploy on push
-
-Se ainda não fez no Checkpoint 3:
-1. **Sources** → **+ Add** → **GitHub** → instalar GitHub App → autorizar repo
-2. Na Application: trocar source de "Public Repository" pra a GitHub Source criada
-3. Toggle **Auto Deploy on Git Push** = ON
-
-Teste: `git commit --allow-empty -m "chore: trigger deploy" && git push` → Coolify rebuilda automaticamente.
-
----
-
-## 🔜 Checkpoint 7 — Backup nightly
-
-Service Supabase → aba **Scheduled Tasks** → **+ Add**:
-
-- **Name:** `backup-postgres-diario`
-- **Frequency:** `0 2 * * *` (02:00 UTC ≈ 03:00 Bruxelas inverno / 04:00 verão)
-- **Timeout (seconds):** `1200`
-- **Container name:** `supabase-db`
-- **Command:**
-
-```bash
-mkdir -p /var/lib/postgresql/data/backups && pg_dump -U postgres -Fc postgres > /var/lib/postgresql/data/backups/backup-$(date +%Y%m%d-%H%M%S).dump && find /var/lib/postgresql/data/backups/ -name "backup-*.dump" -mtime +30 -delete
-```
-
-Save → **Execute Now** uma vez pra validar (output em "Recent executions").
-
-**Restore (quando necessário):**
-```bash
-pg_restore -U postgres -d postgres --clean --if-exists /var/lib/postgresql/data/backups/backup-YYYYMMDD-HHMMSS.dump
-```
-
----
-
-## 🔜 Checkpoint 8 — Cutover (desligar Railway)
-
-Quando tudo estiver verde no Coolify:
-
-1. Atualizar DNS (se houver domínio próprio apontando pro Railway) → apontar pro IP `5.78.42.251`
-2. Desligar serviço/projeto no Railway
-3. Reativar Auto Deploy no Railway? **Não** — pode deletar o projeto Railway se quiser, ou só deixar parado como fallback
-4. Atualizar `README.md`: substituir seção "🚂 Deploy no Railway" por nova seção apontando pro `PLAYBOOK_COOLIFY.md` e este arquivo
+> Como Railway estava com Auto Deploy desligado e sem tráfego (decisão tomada no início desta sessão), o cutover é zero-downtime — clientes não estavam usando ele.
 
 ---
 
@@ -216,10 +86,157 @@ Como fazer:
 3. Escopar cookie `admin_session` pelo host de admin (em `src/lib/auth.ts`)
 4. Conferir se notificações Telegram têm links absolutos — ajustar pra host correto
 
+### Cleanup local
+
+A senha root nova gerada via Hetzner Console **não precisa** mais — usamos SSH com chave depois disso. Pode esquecer ou guardar como backup de emergência.
+
+---
+
+## 📚 Lições aprendidas (pra não repetir)
+
+### 1. `--no-acl` no `pg_dump` quebra PostgREST
+
+Usei `pg_dump --no-acl` pra evitar conflitos com OWNERs do Cloud. Mas isso **remove os GRANTs** das tabelas, e PostgREST conecta com role `service_role` que sem GRANT dá 500 silencioso (PostgREST não loga esses erros).
+
+**Fix aplicado** (rodar via `docker exec supabase-db-... psql -U postgres -d postgres -c "..."`):
+
+```sql
+GRANT USAGE ON SCHEMA public TO postgres, anon, authenticated, service_role;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO postgres, anon, authenticated, service_role;
+GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO postgres, anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO postgres, anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO postgres, anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON FUNCTIONS TO postgres, anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO postgres, anon, authenticated, service_role;
+NOTIFY pgrst, 'reload schema';
+```
+
+Pra migrations futuras: **omitir `--no-acl`** e usar `--no-owner` apenas, ou aplicar esses GRANTs como passo final do restore.
+
+### 2. `pg_dump` cross-version: usar `--format=plain` em vez de `-Fc`
+
+Supabase Cloud roda Postgres 17.6, mas o container no Coolify roda 15.8. `pg_dump 17` gera dump custom v1.16 que `pg_restore 15` não lê (`unsupported version (1.16)`).
+
+**Solução**: usar `--format=plain` (SQL puro) — compatível com qualquer versão. Pode usar `ON_ERROR_STOP=0` no psql pra ignorar comandos novos como `\unrestrict` (inofensivos).
+
+### 3. Schema cache do PostgREST
+
+Após DROP SCHEMA + restore, o PostgREST tem cache antigo. Reiniciar OU enviar `NOTIFY pgrst, 'reload schema';` no banco.
+
+### 4. Healthcheck no docker-compose
+
+`wget --spider` faz HEAD request que Next.js standalone às vezes responde diferente de GET. Trocado por:
+```yaml
+test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/', (r) => process.exit(r.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))"]
+```
+
+### 5. Coolify Domain field
+
+Não pode estar vazio. Sem o domínio com `:3000`, Traefik não tem regra de roteamento → 503 "no available server" mesmo com container healthy.
+
+---
+
+## 🔑 Como recuperar acesso SSH ao servidor (de outra máquina)
+
+Se você está numa máquina nova (ex: trabalho), a chave SSH local **não está lá**. Pra recuperar:
+
+### 1. Pegar a chave do Coolify
+
+1. Coolify → **Keys & Tokens** (sidebar) → aba **Private Keys**
+2. Clica em **`localhost's key`** (descrição: "The private key for the Coolify host machine (localhost)")
+3. Clica no **olhinho** 👁️ pra revelar a chave privada
+4. Seleciona TUDO (BEGIN até END) e copia (Ctrl+C)
+
+### 2. Salvar localmente (PowerShell)
+
+```powershell
+# Cria pasta .ssh se não existe
+New-Item -ItemType Directory -Path "$HOME\.ssh" -Force | Out-Null
+
+# Salva clipboard no arquivo
+[System.IO.File]::WriteAllText("$HOME\.ssh\coolify_localhost", (Get-Clipboard -Raw))
+```
+
+### 3. ⚠️ Coolify mostra a chave em UMA linha só (sem newlines)
+
+O paste perde as quebras. Pra reconstruir:
+
+```powershell
+$path = "$HOME\.ssh\coolify_localhost"
+$raw = [System.IO.File]::ReadAllText($path)
+$header = "-----BEGIN OPENSSH PRIVATE KEY-----"
+$footer = "-----END OPENSSH PRIVATE KEY-----"
+$startIdx = $raw.IndexOf($header) + $header.Length
+$endIdx = $raw.IndexOf($footer)
+$body = $raw.Substring($startIdx, $endIdx - $startIdx).Trim()
+$lines = @()
+for ($i = 0; $i -lt $body.Length; $i += 70) {
+  $end = [Math]::Min($i + 70, $body.Length)
+  $lines += $body.Substring($i, $end - $i)
+}
+$fixed = $header + "`n" + ($lines -join "`n") + "`n" + $footer + "`n"
+[System.IO.File]::WriteAllText($path, $fixed)
+```
+
+### 4. Permissões + teste
+
+```powershell
+$path = "$HOME\.ssh\coolify_localhost"
+icacls $path /inheritance:r
+icacls $path /grant:r "$($env:USERNAME):F"
+ssh -i $path root@5.78.42.251 "whoami"
+# Deve retornar: root
+```
+
+---
+
+## 🧰 Comandos de referência
+
+### SSH no servidor
+```powershell
+ssh -i "$HOME\.ssh\coolify_localhost" root@5.78.42.251
+```
+
+### Pg_dump do Cloud (quando precisar refazer)
+```bash
+# Dentro do SSH:
+read -rs PG_PASS  # cola senha e Enter
+
+docker run --rm \
+  -e PGPASSWORD="$PG_PASS" \
+  -e PGSSLMODE=require \
+  -v /tmp:/dump \
+  postgres:17 \
+  pg_dump --schema=public --no-owner --no-acl --format=plain \
+  -f /dump/cloud-migration.sql \
+  -h aws-0-us-west-2.pooler.supabase.com -p 5432 \
+  -U postgres.bmueswaprjxllvagnbqv -d postgres
+```
+
+### Restore no self-hosted
+```bash
+CONTAINER=supabase-db-rtnlbe2fqtlotqdpyufwgwes
+docker cp /tmp/cloud-migration.sql $CONTAINER:/tmp/cloud-migration.sql
+docker exec $CONTAINER psql -U postgres -d postgres -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public; GRANT ALL ON SCHEMA public TO public;"
+docker exec $CONTAINER psql -U postgres -d postgres -v ON_ERROR_STOP=0 -f /tmp/cloud-migration.sql 2>&1 | tail -30
+# Aplicar GRANTs (importante!)
+docker exec $CONTAINER psql -U postgres -d postgres -c "GRANT USAGE ON SCHEMA public TO postgres, anon, authenticated, service_role; GRANT ALL ON ALL TABLES IN SCHEMA public TO postgres, anon, authenticated, service_role; GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO postgres, anon, authenticated, service_role; GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO postgres, anon, authenticated, service_role; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO postgres, anon, authenticated, service_role; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON FUNCTIONS TO postgres, anon, authenticated, service_role; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO postgres, anon, authenticated, service_role; NOTIFY pgrst, 'reload schema';"
+```
+
+### Backup manual (restauração se algo der errado)
+```bash
+# Dump local do self-hosted
+docker exec supabase-db-rtnlbe2fqtlotqdpyufwgwes pg_dump -U postgres -Fc postgres > /var/lib/postgresql/data/backups/backup-manual-$(date +%Y%m%d-%H%M%S).dump
+
+# Restore
+docker exec supabase-db-rtnlbe2fqtlotqdpyufwgwes pg_restore -U postgres -d postgres --clean --if-exists /var/lib/postgresql/data/backups/backup-YYYYMMDD-HHMMSS.dump
+```
+
 ---
 
 ## Referências
 
 - [PLAYBOOK_COOLIFY.md](PLAYBOOK_COOLIFY.md) — playbook completo (armadilhas, decisões, motivações)
 - Repo no GitHub: `https://github.com/alavank/geladinho-be`
-- IP da VPS: `5.78.42.251`
+- IP da VPS: `5.78.42.251` (Hetzner Cloud `alavank-server`)
+- Supabase Cloud antigo (será desligado): projeto ref `bmueswaprjxllvagnbqv`
