@@ -4,8 +4,8 @@ import type { ComponentType, ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { usePathname, useRouter } from 'next/navigation';
-import { ADMIN_SPA_ROUTES, AdminSpaRoute, isAdminSpaRoute } from '@/lib/gestion-spa';
-import { AdminShellProvider } from '@/components/gestion/AdminShellContext';
+import { ADMIN_SPA_ROUTES, AdminSpaRoute, isAdminSpaRoute } from '@/lib/admin-spa';
+import { AdminShellProvider } from '@/components/admin/AdminShellContext';
 
 function ModuleLoading() {
   return (

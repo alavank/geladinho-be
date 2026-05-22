@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AdminHeader from '@/components/AdminHeader';
-import { useIsAdminModuleActive } from '@/components/gestion/AdminShellContext';
+import { useIsAdminModuleActive } from '@/components/admin/AdminShellContext';
 import { FLAVORS } from '@/lib/flavors';
 import {
   ProductionBatch,

@@ -1,6 +1,6 @@
 'use client';
 
-import { FormData } from '@/app/page';
+import { FormData } from '@/app/pedir/page';
 import { CartItem } from '@/types';
 import { formatEUR } from '@/lib/flavors';
 

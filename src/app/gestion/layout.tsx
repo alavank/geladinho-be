@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import '../globals.css';
 import { PWARegister } from './pwa-register';
-import AdminSpaShell from '@/components/gestion/AdminSpaShell';
+import AdminSpaShell from '@/components/admin/AdminSpaShell';
 
 export const metadata: Metadata = {
   title: 'Admin — Madame Simone',

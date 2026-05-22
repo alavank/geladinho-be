@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { FormData } from '@/app/page';
+import { FormData } from '@/app/pedir/page';
 import { CartItem } from '@/types';
 import { hasStructuredAddress } from '@/lib/address';
 import { formatEUR } from '@/lib/flavors';

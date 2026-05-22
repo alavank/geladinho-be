@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AdminHeader from '@/components/AdminHeader';
-import { useIsAdminModuleActive } from '@/components/gestion/AdminShellContext';
+import { useIsAdminModuleActive } from '@/components/admin/AdminShellContext';
 import { Expense, ExpenseCategory, Supplier } from '@/types';
 import { formatEUR } from '@/lib/flavors';
 
