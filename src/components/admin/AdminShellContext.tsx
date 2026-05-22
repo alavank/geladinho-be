@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext } from 'react';
-import type { AdminSpaRoute } from '@/lib/admin-spa';
+import type { AdminSpaRoute } from '@/lib/gestion-spa';
 
 type AdminShellContextValue = {
   activeRoute: AdminSpaRoute | null;

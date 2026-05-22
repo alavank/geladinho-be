@@ -43,7 +43,7 @@ export default function TakePhotoInvoicePage() {
     formData.append('receipt', file);
 
     try {
-      const res = await fetch('/api/admin/expenses/quick-scan', {
+      const res = await fetch('/api/gestion/expenses/quick-scan', {
         method: 'POST',
         body: formData,
       });

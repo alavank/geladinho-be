@@ -15,18 +15,18 @@ interface Props {
 }
 
 const NAV_LINKS = [
-  { href: '/admin', label: 'Pedidos', accent: 'border-brand-200 text-brand-700 hover:bg-brand-50' },
-  { href: '/admin/clientes', label: 'Clientes', accent: 'border-brand-200 text-brand-700 hover:bg-brand-50' },
-  { href: '/admin/gastos', label: 'Gastos', accent: 'border-orange-200 text-orange-700 hover:bg-orange-50' },
-  { href: '/admin/estoque', label: 'Estoque', accent: 'border-emerald-200 text-emerald-700 hover:bg-emerald-50' },
-  { href: '/admin/rotas', label: 'Rotas', accent: 'border-cyan-200 text-cyan-700 hover:bg-cyan-50' },
-  { href: '/admin/relatorios', label: 'Relatorios', accent: 'border-purple-200 text-purple-700 hover:bg-purple-50' },
-  { href: '/admin/configuracoes', label: 'Config', accent: 'border-gray-200 text-gray-600 hover:bg-gray-50' },
-  { href: '/admin/parametros', label: 'Parametros', accent: 'border-amber-200 text-amber-700 hover:bg-amber-50' },
+  { href: '/gestion', label: 'Pedidos', accent: 'border-brand-200 text-brand-700 hover:bg-brand-50' },
+  { href: '/gestion/clientes', label: 'Clientes', accent: 'border-brand-200 text-brand-700 hover:bg-brand-50' },
+  { href: '/gestion/gastos', label: 'Gastos', accent: 'border-orange-200 text-orange-700 hover:bg-orange-50' },
+  { href: '/gestion/estoque', label: 'Estoque', accent: 'border-emerald-200 text-emerald-700 hover:bg-emerald-50' },
+  { href: '/gestion/rotas', label: 'Rotas', accent: 'border-cyan-200 text-cyan-700 hover:bg-cyan-50' },
+  { href: '/gestion/relatorios', label: 'Relatorios', accent: 'border-purple-200 text-purple-700 hover:bg-purple-50' },
+  { href: '/gestion/configuracoes', label: 'Config', accent: 'border-gray-200 text-gray-600 hover:bg-gray-50' },
+  { href: '/gestion/parametros', label: 'Parametros', accent: 'border-amber-200 text-amber-700 hover:bg-amber-50' },
 ];
 
 function isActive(pathname: string, href: string): boolean {
-  if (href === '/admin') return pathname === '/admin';
+  if (href === '/gestion') return pathname === '/gestion';
   return pathname.startsWith(href);
 }
 
@@ -37,7 +37,7 @@ export default function AdminHeader({ breadcrumbs, actions }: Props) {
     <header className="sticky top-0 z-30 border-b border-gray-200 bg-white shadow-sm">
       {/* Top bar: logo + nav links */}
       <div className="flex items-center justify-between px-4 py-2 md:px-6">
-        <Link href="/admin" scroll={false} className="shrink-0">
+        <Link href="/gestion" scroll={false} className="shrink-0">
           <Image src="/logo.png" alt="Madame Simone" width={120} height={44} className="h-8 w-auto object-contain" />
         </Link>
 

@@ -1,12 +1,12 @@
 export const ADMIN_SPA_ROUTES = [
-  '/admin',
-  '/admin/clientes',
-  '/admin/gastos',
-  '/admin/estoque',
-  '/admin/rotas',
-  '/admin/relatorios',
-  '/admin/configuracoes',
-  '/admin/parametros',
+  '/gestion',
+  '/gestion/clientes',
+  '/gestion/gastos',
+  '/gestion/estoque',
+  '/gestion/rotas',
+  '/gestion/relatorios',
+  '/gestion/configuracoes',
+  '/gestion/parametros',
 ] as const;
 
 export type AdminSpaRoute = (typeof ADMIN_SPA_ROUTES)[number];

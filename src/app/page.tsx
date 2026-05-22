@@ -1,216 +1,156 @@
-'use client';
-
-import { useState, useCallback, useMemo, useEffect } from 'react';
 import Image from 'next/image';
-import { formatEUR } from '@/lib/flavors';
-import { SystemSettings, FlavorConfig } from '@/lib/settings';
-import { CartItem } from '@/types';
-import FlavorCard from '@/components/FlavorCard';
-import OrderForm from '@/components/OrderForm';
-import ConfirmModal from '@/components/ConfirmModal';
-import SuccessScreen from '@/components/SuccessScreen';
-import StickyCart from '@/components/StickyCart';
-import DesktopSidebar from '@/components/DesktopSidebar';
 
-type Step = 'catalog' | 'form' | 'confirm' | 'success';
+const URL_PEDIR = process.env.NEXT_PUBLIC_URL_PEDIR || '/pedir';
+const URL_REVENDA = process.env.NEXT_PUBLIC_URL_REVENDA || '/revenda';
 
-export interface FormData {
-  customerName: string;
-  customerPhone: string;
-  phoneCountry: string;
-  addressFull: string;
-  addressStreet: string;
-  addressNumber: string;
-  addressPostalCode: string;
-  addressCommune: string;
-  needsChange: boolean;
-  changeAmount: string;
-  notes: string;
-}
+const SABORES_DESTAQUE = [
+  'ABACATE', 'AÇAÍ', 'CHOCOTELLA', 'CÔCO',
+  'MORANGO', 'NINHO COM OREO', 'PAÇOQUINHA', 'MARACUJÁ',
+];
 
-export interface ActiveFlavor {
-  id: string;
-  name: string;
-  priceEurCents: number;
-  index: number;
-}
-
-const EMPTY_FORM: FormData = {
-  customerName: '', customerPhone: '', phoneCountry: 'BE',
-  addressFull: '',
-  addressStreet: '', addressNumber: '',
-  addressPostalCode: '', addressCommune: '',
-  needsChange: false, changeAmount: '', notes: '',
-};
-
-export default function HomePage() {
-  const [quantities, setQuantities] = useState<Record<string, number>>({});
-  const [formData, setFormData] = useState<FormData>(EMPTY_FORM);
-  const [step, setStep] = useState<Step>('catalog');
-  const [orderId, setOrderId] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState('');
-  const [settings, setSettings] = useState<SystemSettings | null>(null);
-  const [loadingSettings, setLoadingSettings] = useState(true);
-
-  useEffect(() => {
-    fetch('/api/settings', { cache: 'no-store' })
-      .then((r) => r.json())
-      .then((s: SystemSettings) => { setSettings(s); setLoadingSettings(false); })
-      .catch(() => setLoadingSettings(false));
-  }, []);
-
-  const activeFlavors: ActiveFlavor[] = useMemo(() => {
-    if (!settings) return [];
-    let idx = 0;
-    return settings.flavorConfigs
-      .filter((fc: FlavorConfig) => fc.active)
-      .map((fc: FlavorConfig) => ({ id: fc.id, name: fc.name, priceEurCents: fc.priceEurCents, index: idx++ }));
-  }, [settings]);
-
-  const freightCents = settings?.freightEurCents ?? 0;
-  const minOrderCents = settings?.minOrderEurCents ?? 8500;
-
-  const cartItems: CartItem[] = useMemo(
-    () => activeFlavors.filter((f) => (quantities[f.id] || 0) > 0)
-      .map((f) => ({ flavorId: f.id, flavorName: f.name, quantity: quantities[f.id] || 0 })),
-    [quantities, activeFlavors]
-  );
-
-  const subtotalCents = useMemo(() => {
-    let total = 0;
-    for (const item of cartItems) {
-      const f = activeFlavors.find((af) => af.id === item.flavorId);
-      total += (f?.priceEurCents ?? 0) * item.quantity;
-    }
-    return total;
-  }, [cartItems, activeFlavors]);
-
-  const totalUnits = useMemo(() => cartItems.reduce((s, i) => s + i.quantity, 0), [cartItems]);
-  const grandTotalCents = subtotalCents + freightCents;
-  const canProceed = subtotalCents >= minOrderCents;
-
-  const updateQuantity = useCallback((flavorId: string, value: number) => {
-    setQuantities((prev) => ({ ...prev, [flavorId]: Math.max(0, value) }));
-  }, []);
-
-  const handleProceed = () => { if (!canProceed) return; setStep('form'); window.scrollTo({ top: 0, behavior: 'smooth' }); };
-  const handleFormSubmit = (data: FormData) => { setFormData(data); setStep('confirm'); window.scrollTo({ top: 0, behavior: 'smooth' }); };
-
-  const handleConfirm = async () => {
-    setSubmitting(true); setSubmitError('');
-    try {
-      const changeAmountCents = formData.needsChange && formData.changeAmount
-        ? Math.round(parseFloat(formData.changeAmount.replace(',', '.')) * 100) : undefined;
-      const res = await fetch('/api/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          customerName: formData.customerName, customerPhone: formData.customerPhone, phoneCountry: formData.phoneCountry,
-          addressStreet: formData.addressStreet, addressNumber: formData.addressNumber,
-          addressPostalCode: formData.addressPostalCode, addressCommune: formData.addressCommune,
-          needsChange: formData.needsChange, changeAmountEurCents: changeAmountCents,
-          notes: formData.notes || undefined,
-          items: cartItems.map((i) => ({ flavorId: i.flavorId, flavorName: i.flavorName, quantity: i.quantity })),
-        }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Erro ao enviar pedido');
-      setOrderId(json.orderId);
-      setStep('success');
-    } catch (err: unknown) {
-      setSubmitError(err instanceof Error ? err.message : 'Erro inesperado');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  if (step === 'success') return <SuccessScreen orderId={orderId} />;
-
+export default function LandingPage() {
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#FAFAFA' }}>
-      {/* Header */}
-      <header style={{ background: 'linear-gradient(135deg, #C41230 0%, #4A1E00 100%)' }} className="sticky top-0 z-40 shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-4">
-          <Image src="/logo.png" alt="Madame Simone" width={160} height={56} className="h-12 w-auto object-contain" />
-          {step !== 'catalog' && (
-            <button onClick={() => setStep(step === 'form' ? 'catalog' : 'form')} className="ml-auto text-white/90 hover:text-white text-sm underline">
-              ← Voltar
-            </button>
-          )}
+    <main className="min-h-screen" style={{ backgroundColor: '#FAFAFA' }}>
+      {/* Hero */}
+      <section
+        className="relative overflow-hidden"
+        style={{ background: 'linear-gradient(135deg, #B91C1C 0%, #7C2D12 100%)' }}
+      >
+        <div className="max-w-6xl mx-auto px-6 py-16 sm:py-24 text-center text-white">
+          <div className="flex justify-center mb-6">
+            <Image
+              src="/logo.png"
+              alt="Madame Simone"
+              width={120}
+              height={120}
+              priority
+              className="rounded-full shadow-2xl"
+            />
+          </div>
+          <h1 className="text-4xl sm:text-5xl font-bold mb-4">Madame Simone</h1>
+          <p className="text-xl sm:text-2xl mb-2 font-light">
+            Geladinho artesanal brasileiro
+          </p>
+          <p className="text-lg opacity-90 mb-10">
+            Entregamos sabor e nostalgia direto na sua porta, na Bélgica 🇧🇪
+          </p>
+          <a
+            href={URL_PEDIR}
+            className="inline-block bg-white text-red-700 font-bold text-lg px-10 py-4 rounded-full shadow-xl hover:scale-105 transition-transform"
+          >
+            🍭 Fazer pedido agora
+          </a>
+          <p className="mt-4 text-sm opacity-75">A partir de € 1,70 • Mínimo 50 unidades</p>
         </div>
-      </header>
+      </section>
 
-      {/* Steps */}
-      <div className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-0 flex gap-0">
-          {[{ key: 'catalog', label: '1. Sabores' }, { key: 'form', label: '2. Dados' }, { key: 'confirm', label: '3. Confirmar' }].map((s) => (
-            <span key={s.key} className={`py-3 px-4 text-sm font-semibold border-b-2 transition-all ${step === s.key ? 'border-brand-600 text-brand-600' : 'border-transparent text-gray-400'}`}>
-              {s.label}
+      {/* Galeria de fotos (placeholders) */}
+      <section className="max-w-6xl mx-auto px-6 py-16">
+        <h2 className="text-3xl font-bold text-center mb-2 text-gray-800">
+          Veja nossos sabores
+        </h2>
+        <p className="text-center text-gray-600 mb-10">30 sabores feitos com carinho</p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
+            <div
+              key={n}
+              className="aspect-square bg-gradient-to-br from-pink-100 to-red-100 rounded-2xl flex items-center justify-center border-2 border-dashed border-pink-300"
+            >
+              <span className="text-pink-400 text-sm">foto-{n}.jpg</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Como funciona */}
+      <section className="bg-white py-16">
+        <div className="max-w-6xl mx-auto px-6">
+          <h2 className="text-3xl font-bold text-center mb-12 text-gray-800">
+            Como funciona
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
+            {[
+              { emoji: '🍭', title: '1. Escolha', desc: 'Selecione seus sabores favoritos no cardápio' },
+              { emoji: '📱', title: '2. Confirme', desc: 'Preencha seus dados e finalize o pedido' },
+              { emoji: '🚚', title: '3. Receba', desc: 'Entregamos diretamente na sua casa' },
+            ].map((s) => (
+              <div key={s.title} className="text-center">
+                <div className="text-6xl mb-4">{s.emoji}</div>
+                <h3 className="text-xl font-bold mb-2 text-gray-800">{s.title}</h3>
+                <p className="text-gray-600">{s.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Sabores em destaque */}
+      <section className="max-w-6xl mx-auto px-6 py-16">
+        <h2 className="text-3xl font-bold text-center mb-2 text-gray-800">
+          Alguns dos nossos sabores
+        </h2>
+        <p className="text-center text-gray-600 mb-10">
+          E muitos outros esperam você no cardápio completo
+        </p>
+        <div className="flex flex-wrap justify-center gap-3">
+          {SABORES_DESTAQUE.map((s) => (
+            <span
+              key={s}
+              className="px-4 py-2 bg-gradient-to-br from-red-50 to-pink-50 border border-red-100 rounded-full text-sm font-medium text-red-700"
+            >
+              {s}
             </span>
           ))}
         </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-4 py-6 lg:flex lg:gap-8 pb-32 lg:pb-6">
-        <div className="flex-1">
-          {step === 'catalog' && (
-            <>
-              <div className="mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">Escolha seus sabores</h2>
-                {!loadingSettings && settings && (
-                  <p className="text-gray-500 mt-1">
-                    Pedido mínimo: <span className="font-semibold text-brand-600">{formatEUR(minOrderCents)}</span>
-                    {freightCents > 0 && <> · Frete: <span className="font-semibold text-brand-600">{formatEUR(freightCents)}</span></>}
-                  </p>
-                )}
-              </div>
-              {loadingSettings ? (
-                <div className="flex items-center justify-center py-20 text-gray-400">⏳ Carregando cardápio...</div>
-              ) : activeFlavors.length === 0 ? (
-                <div className="flex items-center justify-center py-20 text-gray-400 text-center">
-                  <div><p className="text-4xl mb-3">🧊</p><p className="font-semibold">Cardápio não disponível no momento.</p></div>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {activeFlavors.map((flavor) => (
-                    <FlavorCard
-                      key={flavor.id}
-                      flavorId={flavor.id}
-                      flavorName={flavor.name}
-                      colorIndex={flavor.index}
-                      quantity={quantities[flavor.id] || 0}
-                      unitPriceCents={flavor.priceEurCents}
-                      onQuantityChange={(val) => updateQuantity(flavor.id, val)}
-                    />
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-          {step === 'form' && (
-            <OrderForm initialData={formData} onSubmit={handleFormSubmit} cartItems={cartItems}
-              activeFlavors={activeFlavors} totalUnits={totalUnits} subtotalCents={subtotalCents}
-              freightCents={freightCents} grandTotalCents={grandTotalCents} />
-          )}
-          {step === 'confirm' && (
-            <ConfirmModal formData={formData} cartItems={cartItems} activeFlavors={activeFlavors}
-              totalUnits={totalUnits} subtotalCents={subtotalCents} freightCents={freightCents}
-              grandTotalCents={grandTotalCents} onConfirm={handleConfirm} onBack={() => setStep('form')}
-              submitting={submitting} error={submitError} />
-          )}
+        <div className="text-center mt-10">
+          <a
+            href={URL_PEDIR}
+            className="inline-block bg-red-700 text-white font-bold px-8 py-3 rounded-full shadow-lg hover:bg-red-800 transition-colors"
+          >
+            Ver cardápio completo →
+          </a>
         </div>
-        {step === 'catalog' && (
-          <DesktopSidebar cartItems={cartItems} activeFlavors={activeFlavors} totalUnits={totalUnits}
-            subtotalCents={subtotalCents} freightCents={freightCents} grandTotalCents={grandTotalCents}
-            minOrderCents={minOrderCents} onProceed={handleProceed} />
-        )}
-      </div>
+      </section>
 
-      {step === 'catalog' && (
-        <StickyCart totalUnits={totalUnits} subtotalCents={subtotalCents} freightCents={freightCents}
-          grandTotalCents={grandTotalCents} minOrderCents={minOrderCents} onProceed={handleProceed} />
-      )}
-    </div>
+      {/* B2B section */}
+      <section className="bg-gradient-to-br from-amber-50 to-orange-50 py-16 border-t-4 border-amber-400">
+        <div className="max-w-4xl mx-auto px-6 text-center">
+          <div className="text-5xl mb-4">🏪</div>
+          <h2 className="text-3xl font-bold mb-4 text-gray-800">
+            Tem um negócio? Vende para revendedores!
+          </h2>
+          <p className="text-lg text-gray-700 mb-8 max-w-2xl mx-auto">
+            Restaurante, lanchonete, mercearia? Trabalhamos com revendedores em condições
+            especiais. Geladinhos de qualidade, entrega regular e preço justo.
+          </p>
+          <a
+            href={URL_REVENDA}
+            className="inline-block bg-amber-600 text-white font-bold px-8 py-3 rounded-full shadow-lg hover:bg-amber-700 transition-colors"
+          >
+            Quero ser revendedor →
+          </a>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-gray-900 text-gray-400 py-10">
+        <div className="max-w-6xl mx-auto px-6 text-center">
+          <div className="flex justify-center mb-4">
+            <Image
+              src="/logo.png"
+              alt="Madame Simone"
+              width={60}
+              height={60}
+              className="rounded-full opacity-80"
+            />
+          </div>
+          <p className="font-bold text-white mb-2">Madame Simone</p>
+          <p className="text-sm mb-4">Geladinho artesanal • Bélgica</p>
+          <p className="text-xs opacity-60">
+            © {new Date().getFullYear()} Madame Simone — Todos os direitos reservados
+          </p>
+        </div>
+      </footer>
+    </main>
   );
 }

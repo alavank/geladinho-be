@@ -297,7 +297,7 @@ export default function ExpensePurchaseForm({
     formData.append('receipt', file);
 
     try {
-      const response = await fetch('/api/admin/expenses/scan', {
+      const response = await fetch('/api/gestion/expenses/scan', {
         method: 'POST',
         body: formData,
       });

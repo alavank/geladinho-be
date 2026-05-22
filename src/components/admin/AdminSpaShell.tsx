@@ -4,8 +4,8 @@ import type { ComponentType, ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { usePathname, useRouter } from 'next/navigation';
-import { ADMIN_SPA_ROUTES, AdminSpaRoute, isAdminSpaRoute } from '@/lib/admin-spa';
-import { AdminShellProvider } from '@/components/admin/AdminShellContext';
+import { ADMIN_SPA_ROUTES, AdminSpaRoute, isAdminSpaRoute } from '@/lib/gestion-spa';
+import { AdminShellProvider } from '@/components/gestion/AdminShellContext';
 
 function ModuleLoading() {
   return (
@@ -20,25 +20,25 @@ type PreloadableComponent = ComponentType & {
 };
 
 const routeImports: Record<AdminSpaRoute, () => Promise<{ default: ComponentType }>> = {
-  '/admin': () => import('@/app/admin/page'),
-  '/admin/clientes': () => import('@/app/admin/clientes/page'),
-  '/admin/gastos': () => import('@/app/admin/gastos/page'),
-  '/admin/estoque': () => import('@/app/admin/estoque/page'),
-  '/admin/rotas': () => import('@/app/admin/rotas/page'),
-  '/admin/relatorios': () => import('@/app/admin/relatorios/page'),
-  '/admin/configuracoes': () => import('@/app/admin/configuracoes/page'),
-  '/admin/parametros': () => import('@/app/admin/parametros/page'),
+  '/gestion': () => import('@/app/gestion/page'),
+  '/gestion/clientes': () => import('@/app/gestion/clientes/page'),
+  '/gestion/gastos': () => import('@/app/gestion/gastos/page'),
+  '/gestion/estoque': () => import('@/app/gestion/estoque/page'),
+  '/gestion/rotas': () => import('@/app/gestion/rotas/page'),
+  '/gestion/relatorios': () => import('@/app/gestion/relatorios/page'),
+  '/gestion/configuracoes': () => import('@/app/gestion/configuracoes/page'),
+  '/gestion/parametros': () => import('@/app/gestion/parametros/page'),
 };
 
 const routeModules: Record<AdminSpaRoute, ComponentType> = {
-  '/admin': dynamic(routeImports['/admin'], { loading: ModuleLoading }),
-  '/admin/clientes': dynamic(routeImports['/admin/clientes'], { loading: ModuleLoading }),
-  '/admin/gastos': dynamic(routeImports['/admin/gastos'], { loading: ModuleLoading }),
-  '/admin/estoque': dynamic(routeImports['/admin/estoque'], { loading: ModuleLoading }),
-  '/admin/rotas': dynamic(routeImports['/admin/rotas'], { loading: ModuleLoading }),
-  '/admin/relatorios': dynamic(routeImports['/admin/relatorios'], { loading: ModuleLoading }),
-  '/admin/configuracoes': dynamic(routeImports['/admin/configuracoes'], { loading: ModuleLoading }),
-  '/admin/parametros': dynamic(routeImports['/admin/parametros'], { loading: ModuleLoading }),
+  '/gestion': dynamic(routeImports['/gestion'], { loading: ModuleLoading }),
+  '/gestion/clientes': dynamic(routeImports['/gestion/clientes'], { loading: ModuleLoading }),
+  '/gestion/gastos': dynamic(routeImports['/gestion/gastos'], { loading: ModuleLoading }),
+  '/gestion/estoque': dynamic(routeImports['/gestion/estoque'], { loading: ModuleLoading }),
+  '/gestion/rotas': dynamic(routeImports['/gestion/rotas'], { loading: ModuleLoading }),
+  '/gestion/relatorios': dynamic(routeImports['/gestion/relatorios'], { loading: ModuleLoading }),
+  '/gestion/configuracoes': dynamic(routeImports['/gestion/configuracoes'], { loading: ModuleLoading }),
+  '/gestion/parametros': dynamic(routeImports['/gestion/parametros'], { loading: ModuleLoading }),
 };
 
 type OverlayRouteDefinition = {
@@ -50,46 +50,46 @@ type OverlayRouteDefinition = {
 
 const overlayRouteDefinitions: OverlayRouteDefinition[] = [
   {
-    baseRoute: '/admin',
-    component: dynamic(() => import('@/app/admin/pedidos/[id]/page'), { loading: ModuleLoading }),
+    baseRoute: '/gestion',
+    component: dynamic(() => import('@/app/gestion/pedidos/[id]/page'), { loading: ModuleLoading }),
     panelClassName: 'max-w-6xl',
-    pattern: /^\/admin\/pedidos\/[^/]+$/,
+    pattern: /^\/gestion\/pedidos\/[^/]+$/,
   },
   {
-    baseRoute: '/admin/gastos',
-    component: dynamic(() => import('@/app/admin/gastos/novo/page'), { loading: ModuleLoading }),
+    baseRoute: '/gestion/gastos',
+    component: dynamic(() => import('@/app/gestion/gastos/novo/page'), { loading: ModuleLoading }),
     panelClassName: 'max-w-6xl',
-    pattern: /^\/admin\/gastos\/novo$/,
+    pattern: /^\/gestion\/gastos\/novo$/,
   },
   {
-    baseRoute: '/admin/gastos',
-    component: dynamic(() => import('@/app/admin/gastos/categorias/page'), { loading: ModuleLoading }),
+    baseRoute: '/gestion/gastos',
+    component: dynamic(() => import('@/app/gestion/gastos/categorias/page'), { loading: ModuleLoading }),
     panelClassName: 'max-w-3xl',
-    pattern: /^\/admin\/gastos\/categorias$/,
+    pattern: /^\/gestion\/gastos\/categorias$/,
   },
   {
-    baseRoute: '/admin/gastos',
-    component: dynamic(() => import('@/app/admin/gastos/fornecedores/page'), { loading: ModuleLoading }),
+    baseRoute: '/gestion/gastos',
+    component: dynamic(() => import('@/app/gestion/gastos/fornecedores/page'), { loading: ModuleLoading }),
     panelClassName: 'max-w-3xl',
-    pattern: /^\/admin\/gastos\/fornecedores$/,
+    pattern: /^\/gestion\/gastos\/fornecedores$/,
   },
   {
-    baseRoute: '/admin/gastos',
-    component: dynamic(() => import('@/app/admin/gastos/[id]/editar/page'), { loading: ModuleLoading }),
+    baseRoute: '/gestion/gastos',
+    component: dynamic(() => import('@/app/gestion/gastos/[id]/editar/page'), { loading: ModuleLoading }),
     panelClassName: 'max-w-6xl',
-    pattern: /^\/admin\/gastos\/[^/]+\/editar$/,
+    pattern: /^\/gestion\/gastos\/[^/]+\/editar$/,
   },
   {
-    baseRoute: '/admin/gastos',
-    component: dynamic(() => import('@/app/admin/gastos/[id]/page'), { loading: ModuleLoading }),
+    baseRoute: '/gestion/gastos',
+    component: dynamic(() => import('@/app/gestion/gastos/[id]/page'), { loading: ModuleLoading }),
     panelClassName: 'max-w-4xl',
-    pattern: /^\/admin\/gastos\/[^/]+$/,
+    pattern: /^\/gestion\/gastos\/[^/]+$/,
   },
   {
-    baseRoute: '/admin/configuracoes',
-    component: dynamic(() => import('@/app/admin/configuracoes/b2b/page'), { loading: ModuleLoading }),
+    baseRoute: '/gestion/configuracoes',
+    component: dynamic(() => import('@/app/gestion/configuracoes/b2b/page'), { loading: ModuleLoading }),
     panelClassName: 'max-w-4xl',
-    pattern: /^\/admin\/configuracoes\/b2b$/,
+    pattern: /^\/gestion\/configuracoes\/b2b$/,
   },
 ];
 
@@ -104,7 +104,7 @@ export default function AdminSpaShell({ children }: { children: ReactNode }) {
   const isSpaRoute = isAdminSpaRoute(currentPath);
   const activeBaseRoute = isSpaRoute ? currentPath : overlayRoute?.baseRoute ?? null;
   const shouldUseShell = activeBaseRoute !== null;
-  const canPreloadModules = currentPath !== '/admin/login';
+  const canPreloadModules = currentPath !== '/gestion/login';
   const OverlayComponent = overlayRoute?.component;
   const overlayPanelClassName = overlayRoute?.panelClassName || 'max-w-6xl';
 
