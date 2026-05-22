@@ -2,7 +2,7 @@
 
 > Documento vivo, fonte de verdade pra continuar a migração de qualquer máquina (casa ou trabalho). Após `git pull`, leia este arquivo.
 
-**Status:** ✅ Migração concluída. App em produção no Coolify com dados reais. Railway continua rodando como fallback (sem auto-deploy, sem tráfego) — decisão de não desligar agora.
+**Status:** ✅ Migração concluída + feature de URLs separadas por persona implementada. Railway continua rodando como fallback.
 
 **Última atualização:** 2026-05-22
 
@@ -16,11 +16,15 @@
 - **Container Postgres do projeto:** `supabase-db-rtnlbe2fqtlotqdpyufwgwes`
 - **Container PostgREST:** `supabase-rest-rtnlbe2fqtlotqdpyufwgwes`
 
-### URLs sslip.io (prefixo: `geladinho`)
+### URLs sslip.io
 
-| Serviço | URL |
+| Serviço / Persona | URL |
 |---|---|
-| App Next.js | `https://geladinho-app-5-78-42-251.sslip.io` |
+| Landing page | `https://geladinho-5-78-42-251.sslip.io` |
+| Cliente final B2C (form de pedido) | `https://pedir-geladinho-5-78-42-251.sslip.io` |
+| Revenda B2B | `https://geladinho-magasin-5-78-42-251.sslip.io` |
+| Admin (gestão) | `https://geladinho-5-78-42-251.sslip.io/gestion` |
+| App legado (cai na landing) | `https://geladinho-app-5-78-42-251.sslip.io` |
 | Supabase API (Kong) | `https://geladinho-api-5-78-42-251.sslip.io` |
 | Supabase Studio | `https://geladinho-studio-5-78-42-251.sslip.io` |
 
@@ -91,22 +95,43 @@ Daí `scp` o arquivo pra máquina local pra guardar offline.
 
 ---
 
-## 🔜 Pós-migração (backlog)
+## ✅ Feature: URLs separadas por persona (implementada em 2026-05-22)
 
-### URLs separadas por persona
+Implementada nos commits `47cd2ea` (refactor inicial) e `bea9cf2` (fix de imports).
 
-Hoje tudo está em `https://geladinho-app-5-78-42-251.sslip.io` (cliente em `/`, admin em `/admin`, revenda em `/revenda`).
+### O que foi feito
 
-Desejado:
-- `https://pedir-geladinho-5-78-42-251.sslip.io` → cliente (`/`)
-- `https://geladinho-magasin-5-78-42-251.sslip.io` → revenda (rewrite pra `/revenda`)
-- `https://geladinho-5-78-42-251.sslip.io` → admin (rewrite pra `/admin`)
+- **Renomeação de paths**: `src/app/admin/*` → `src/app/gestion/*`, `src/app/api/admin/*` → `src/app/api/gestion/*`
+- **Form B2C movido**: `src/app/page.tsx` → `src/app/pedir/page.tsx`
+- **Nova landing page** em `src/app/page.tsx` (hero, galeria placeholder, como funciona, sabores destaque, seção B2B, footer)
+- **Middleware estendido** com rewrite por host: `pedir-geladinho-*` → `/pedir`, `geladinho-magasin-*` → `/revenda`, demais hosts vão pra landing direto
+- **Auth `/gestion`** continua protegida via cookie (mesma lógica de antes, só mudou path)
+- **Env vars novas** (Build Variables no Coolify): `NEXT_PUBLIC_URL_PEDIR` e `NEXT_PUBLIC_URL_REVENDA` (a landing usa pra linkar absolutamente pros hosts dedicados)
+- **Coolify Domains** atualizado: 4 URLs configuradas (separadas por vírgula no campo)
 
-Como fazer:
-1. No Coolify, adicionar os 3 domains no campo `Domains for app` (uma URL por linha, todas com `:3000`)
-2. Estender `src/middleware.ts` pra ler `request.headers.get('host')` e fazer `NextResponse.rewrite()` baseado no host
-3. Escopar cookie `admin_session` pelo host de admin (em `src/lib/auth.ts`)
-4. Conferir se notificações Telegram têm links absolutos — ajustar pra host correto
+### Coisas a saber
+
+- A pasta `src/components/admin/` **não foi renomeada** (componentes ainda têm nomes `Admin*`). Só o que afeta URLs/paths foi mudado. Renomear componentes seria diff inflado sem benefício real.
+- O host legado `geladinho-app-*` continua funcionando — cai na landing (não casa `pedir-` nem `geladinho-magasin-`). Pode remover do Coolify quando ninguém mais usar.
+
+---
+
+## 🔜 Pós-migração (backlog restante)
+
+### Subir fotos reais na landing page
+
+A landing usa **placeholders** cinza-rosa nos slots de foto (8 slots na seção "Veja nossos sabores"). Pra trocar pelas fotos reais:
+
+1. Subir arquivos `foto-1.jpg` até `foto-8.jpg` em `public/images/landing/`
+2. Editar `src/app/page.tsx` na seção "Galeria de fotos": trocar o `<div>` placeholder por `<Image src="/images/landing/foto-N.jpg" ... />`
+
+### Notificações Telegram com links
+
+Conferir `src/lib/telegram.ts` — se as mensagens tem link tipo "ver pedido em [URL]/gestion/pedidos/...", garantir que o URL aponta pra `https://geladinho-5-78-42-251.sslip.io/gestion/...` (não pra `geladinho-app-...`).
+
+### Escopar cookie admin
+
+Hoje cookie `admin_session` é definido com domain padrão (= mesmo host que setou). Se o admin entra via `geladinho-5-78-42-251.sslip.io`, o cookie vale só ali — bom isolamento. Se quiser ainda mais restrito, pode setar `domain: 'geladinho-5-78-42-251.sslip.io'` explicitamente em `src/lib/auth.ts` no `cookies().set(...)`. Não é bloqueante.
 
 ### Cleanup local
 
