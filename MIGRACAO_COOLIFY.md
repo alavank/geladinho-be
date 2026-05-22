@@ -2,9 +2,9 @@
 
 > Documento vivo, fonte de verdade pra continuar a migração de qualquer máquina (casa ou trabalho). Após `git pull`, leia este arquivo.
 
-**Status:** ✅ App rodando em produção no Coolify com dados reais migrados do Cloud. **Falta apenas Checkpoint 8 (desligar Railway)**.
+**Status:** ✅ Migração concluída. App em produção no Coolify com dados reais. Railway continua rodando como fallback (sem auto-deploy, sem tráfego) — decisão de não desligar agora.
 
-**Última atualização:** 2026-05-21
+**Última atualização:** 2026-05-22
 
 ---
 
@@ -49,23 +49,45 @@
 
 ---
 
-## ⏸️ Checkpoint 8 — Próximo passo (cutover Railway)
+## ⏸️ Checkpoint 8 — Cutover Railway (deferido)
 
-Tudo está rodando no Coolify com dados reais. Falta só desligar o Railway pra concluir a migração.
+**Decisão (2026-05-22):** deixar Railway rodando como fallback por enquanto. Sem urgência pra desligar — está sem auto-deploy e sem tráfego.
 
-### O que fazer
+### Estado atual do Railway
 
-1. **Login no Railway** (railway.app)
-2. Localizar o projeto antigo do `geladinho-be`
-3. **Pausar ou deletar** o serviço:
-   - **Pausar** (recomendado primeiro, ~1 semana): vai pro estado idle, sem cobrança, mantém config caso precise voltar
-   - **Deletar** depois de confirmar que tudo está OK no Coolify por uns dias
-4. Se houver domínio próprio apontando pro Railway (não é o caso atual — usamos sslip.io):
-   - Atualizar DNS A record pra `5.78.42.251`
-   - Aguardar propagação (~5min–48h dependendo do TTL)
-5. (Opcional) Atualizar `README.md`: substituir seção "🚂 Deploy no Railway" por nova seção apontando pro `PLAYBOOK_COOLIFY.md` e este arquivo
+- Service do `geladinho-be` continua rodando com a última versão pré-migração
+- Auto Deploy desligado (decidido no início da migração)
+- URL `geladinho.up.railway.app` ainda responde mas não é divulgada
+- Conectado ao **Supabase Cloud antigo** (`bmueswaprjxllvagnbqv.supabase.co`) — esse Cloud também continua ativo
+- Continua cobrando (Railway não tem mais opção de Pause na versão atual — só **Delete Service**)
 
-> Como Railway estava com Auto Deploy desligado e sem tráfego (decisão tomada no início desta sessão), o cutover é zero-downtime — clientes não estavam usando ele.
+### Quando decidir desligar
+
+A versão atual do Railway só oferece **Delete Service** (não tem Pause). Caminho:
+1. railway.app → projeto `geladinho-be` → service → aba **Settings** → final da página → **Delete service**
+2. Project no Railway permanece (pode recriar service depois se precisar)
+3. Depois, no Supabase Cloud (`supabase.com/dashboard/project/bmueswaprjxllvagnbqv`): **Pause** ou **Delete** o projeto também (release dos custos do Cloud)
+
+### Backup pré-cutover (caso queira fazer)
+
+Antes de deletar, gerar um pg_dump fresco do Cloud pra arquivo local (alguns minutos extras de cautela):
+
+```powershell
+ssh -i "$HOME\.ssh\coolify_localhost" root@5.78.42.251
+# No SSH:
+read -rs PG_PASS  # cola a senha do Cloud
+docker run --rm \
+  -e PGPASSWORD="$PG_PASS" \
+  -e PGSSLMODE=require \
+  -v /tmp:/dump \
+  postgres:17 \
+  pg_dump --schema=public --no-owner --format=plain \
+  -f /dump/cloud-final-backup-$(date +%Y%m%d).sql \
+  -h aws-0-us-west-2.pooler.supabase.com -p 5432 \
+  -U postgres.bmueswaprjxllvagnbqv -d postgres
+```
+
+Daí `scp` o arquivo pra máquina local pra guardar offline.
 
 ---
 
