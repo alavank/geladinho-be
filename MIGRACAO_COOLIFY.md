@@ -2,7 +2,7 @@
 
 > Documento vivo, fonte de verdade pra continuar a migração de qualquer máquina (casa ou trabalho). Após `git pull`, leia este arquivo.
 
-**Status:** ✅ Migração concluída + feature de URLs separadas por persona implementada. Railway continua rodando como fallback.
+**Status:** ✅ Migração concluída. Coolify é fonte única. Railway com URL renomeada (público não acessa mais).
 
 **Última atualização:** 2026-05-22
 
@@ -53,19 +53,19 @@
 
 ---
 
-## ⏸️ Checkpoint 8 — Cutover Railway (deferido)
+## ✅ Checkpoint 8 — Cutover Railway (parcial, 2026-05-22)
 
-**Decisão (2026-05-22):** deixar Railway rodando como fallback por enquanto. Sem urgência pra desligar — está sem auto-deploy e sem tráfego.
+**Decisão:** em vez de deletar Railway, o subdomain público foi renomeado pra uma string aleatória (Settings → Networking → Domain). Isso desativa o acesso público (URL `geladinho.up.railway.app` retorna 404) mas mantém serviço + billing + config intactos como fallback de emergência.
 
 ### Estado atual do Railway
 
-- Service do `geladinho-be` continua rodando com a última versão pré-migração
-- Auto Deploy desligado (decidido no início da migração)
-- URL `geladinho.up.railway.app` ainda responde mas não é divulgada
-- Conectado ao **Supabase Cloud antigo** (`bmueswaprjxllvagnbqv.supabase.co`) — esse Cloud também continua ativo
-- Continua cobrando (Railway não tem mais opção de Pause na versão atual — só **Delete Service**)
+- Service do `geladinho-be` continua rodando (com a última versão pré-migração)
+- Auto Deploy desligado
+- **URL pública renomeada** (anotada no gerenciador de senhas) — `geladinho.up.railway.app` agora 404
+- Conectado ao Supabase Cloud antigo (`bmueswaprjxllvagnbqv.supabase.co`) — Cloud também continua ativo
+- Continua cobrando, mas isolado do mundo externo
 
-### Quando decidir desligar
+### Quando decidir desligar de vez (opcional)
 
 A versão atual do Railway só oferece **Delete Service** (não tem Pause). Caminho:
 1. railway.app → projeto `geladinho-be` → service → aba **Settings** → final da página → **Delete service**
@@ -179,7 +179,49 @@ test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/', (r) =
 
 ### 5. Coolify Domain field
 
-Não pode estar vazio. Sem o domínio com `:3000`, Traefik não tem regra de roteamento → 503 "no available server" mesmo com container healthy.
+Não pode estar vazio. Sem o domínio com `:3000`, Traefik não tem regra de roteamento → 503 "no available server" mesmo com container healthy. **Múltiplas URLs separadas por vírgula** (não por espaço — quebra o parser do Coolify).
+
+### 6. Resync delta destrói dados criados no Coolify entre dumps
+
+Como o procedimento atual é `DROP SCHEMA + restore completo`, qualquer pedido feito no Coolify entre o dump anterior e o novo é **perdido**. Aconteceu em 2026-05-22 (perdemos 1 pedido entre as 2 sessões). Por isso o Railway ficou com URL renomeada (não acessível publicamente) — pra impedir novos pedidos lá.
+
+---
+
+## 🔁 Procedimento de resync delta (se algum dia entrar pedido no Cloud antigo)
+
+Premissa: Railway tem URL escondida agora, então **não deveria entrar novos pedidos no Cloud**. Se entrar (ex: alguém usa link antigo via bookmark), seguir este procedimento.
+
+### Pré-requisito
+- SSH ao servidor (chave em `C:\Users\Tiago Miller\.ssh\coolify_localhost`)
+- Senha do Supabase Cloud (no gerenciador de senhas)
+- Script `restore-cloud-delta.sh` no Desktop (anexado abaixo) OU regenerar com base nas instruções
+
+### Passos
+
+1. **Você** (no PowerShell local): faz SSH e roda pg_dump
+   ```powershell
+   ssh -i "$HOME\.ssh\coolify_localhost" root@5.78.42.251
+   ```
+   No prompt do servidor:
+   ```bash
+   read -rs PG_PASS
+   # cola só a senha do Cloud + Enter
+   echo "Senha tem ${#PG_PASS} caracteres"  # deve dar 11
+   docker run --rm -e PGPASSWORD="$PG_PASS" -e PGSSLMODE=require -v /tmp:/dump postgres:17 pg_dump --schema=public --no-owner --no-acl --format=plain -f /dump/cloud-migration-$(date +%Y%m%d).sql -h aws-0-us-west-2.pooler.supabase.com -p 5432 -U postgres.bmueswaprjxllvagnbqv -d postgres
+   ls -lh /tmp/cloud-migration-*.sql
+   ```
+
+2. **Eu (Claude)** ou quem estiver gerenciando: rodar `restore-cloud-delta.sh` que faz:
+   - Contagens antes
+   - `docker cp` dump pro container
+   - `DROP SCHEMA public CASCADE; CREATE SCHEMA public`
+   - `psql -f` restore
+   - `GRANT` em massa pros 4 roles (postgres, anon, authenticated, service_role)
+   - `NOTIFY pgrst, 'reload schema'`
+   - Contagens depois
+   - Restart do container PostgREST
+
+   Script versionado no repo em [scripts/restore-cloud-delta.sh](scripts/restore-cloud-delta.sh). Editar apenas o `DUMP_FILE=` se o nome for diferente, depois `scp` pra `/tmp/` no servidor + `bash /tmp/restore-cloud-delta.sh`.
 
 ---
 
