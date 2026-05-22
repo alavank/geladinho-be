@@ -2,7 +2,7 @@
 
 MVP completo de pedidos de geladinho para a comunidade brasileira na Bélgica.
 
-**Stack:** Next.js 14 (App Router) · TypeScript · TailwindCSS · Supabase (Postgres) · Telegram Bot · Railway
+**Stack:** Next.js 14 (App Router) · TypeScript · TailwindCSS · Supabase (Postgres, self-hosted) · Telegram Bot · Coolify v4 + Hetzner Cloud
 
 ---
 
@@ -123,39 +123,37 @@ NEXT_PUBLIC_GOOGLE_PLACES_API_KEY=AIza...  # mesma key, exposta ao browser
 
 ---
 
-## 🚂 Deploy no Railway
+## 🚀 Deploy em produção (Coolify + Hetzner)
 
-### Pré-requisitos
-- Conta no [Railway](https://railway.app)
-- Projeto Supabase configurado
-- Bot Telegram configurado
+Produção atual roda em **Coolify v4 em VPS Hetzner Cloud** com Supabase self-hosted no mesmo cluster. Auto-deploy on push pra branch `main` via GitHub App.
 
-### Passo a passo
+URLs:
+- App: `https://geladinho-app-5-78-42-251.sslip.io`
+- Supabase Studio: `https://geladinho-studio-5-78-42-251.sslip.io`
 
-1. **Crie um novo projeto** no Railway → "Deploy from GitHub repo"
+### Como deployar uma alteração
 
-2. **Selecione o repositório** do projeto
+Basta push pra `main` — Coolify rebuilda e redeploya automaticamente:
+```bash
+git push origin main
+```
 
-3. **Configure as variáveis de ambiente** em Settings → Variables:
-   ```
-   SUPABASE_URL=
-   SUPABASE_SERVICE_ROLE_KEY=
-   ADMIN_USER=admin
-   ADMIN_PASS=senha-forte-aqui
-   TELEGRAM_BOT_TOKEN=
-   TELEGRAM_CHAT_ID=
-   GOOGLE_PLACES_API_KEY=  (opcional)
-   NEXT_PUBLIC_GOOGLE_PLACES_API_KEY=  (opcional)
-   NODE_ENV=production
-   ```
+Acompanhe em `http://5.78.42.251:8000` → project **geladinho** → Application → aba **Deployments**.
 
-4. **Build & Start commands** (Railway detecta automaticamente Next.js):
-   - Build: `npm run build`
-   - Start: `npm start`
+### Como provisionar do zero / replicar em outro projeto
 
-5. **Gere o domínio** em Settings → Networking → Generate Domain
+Toda a documentação está em dois arquivos:
 
-6. Acesse seu site no domínio gerado! 🎉
+- **[PLAYBOOK_COOLIFY.md](PLAYBOOK_COOLIFY.md)** — passo-a-passo replicável para qualquer app Next.js + Supabase no Coolify (armadilhas conhecidas, decisões de config, valores recomendados)
+- **[MIGRACAO_COOLIFY.md](MIGRACAO_COOLIFY.md)** — histórico desta migração específica (Cloud → self-hosted, lições aprendidas, comandos de referência)
+
+### Build local com Docker (smoke test antes de pushar)
+
+```bash
+docker compose build
+docker compose up
+# Acessa http://localhost:3000
+```
 
 ---
 
