@@ -4,13 +4,13 @@
 
 **Status:** ✅ Migração concluída. Coolify é fonte única. Railway com URL renomeada (público não acessa mais).
 
-**Última atualização:** 2026-05-22
+**Última atualização:** 2026-05-31
 
 ---
 
 ## Infra alvo
 
-- **VPS Hetzner Cloud:** `5.78.42.251` (CPX51, Ubuntu 24.04, Hillsboro/OR — `alavank-server` / hostname `coolify-frotas`)
+- **VPS Hetzner Cloud:** `5.78.42.251` (**CCX33** — 8 vCPU dedicado / 32 GB RAM / 40 GB disco; era CPX51 até o rescale em 2026-05-31 — Ubuntu 24.04, Hillsboro/OR — `alavank-server` / hostname `coolify-frotas`)
 - **Coolify dashboard:** `http://5.78.42.251:8000`
 - **Project no Coolify:** `geladinho` (environment: `production`)
 - **Container Postgres do projeto:** `supabase-db-rtnlbe2fqtlotqdpyufwgwes`
@@ -184,6 +184,40 @@ Não pode estar vazio. Sem o domínio com `:3000`, Traefik não tem regra de rot
 ### 6. Resync delta destrói dados criados no Coolify entre dumps
 
 Como o procedimento atual é `DROP SCHEMA + restore completo`, qualquer pedido feito no Coolify entre o dump anterior e o novo é **perdido**. Aconteceu em 2026-05-22 (perdemos 1 pedido entre as 2 sessões). Por isso o Railway ficou com URL renomeada (não acessível publicamente) — pra impedir novos pedidos lá.
+
+### 7. Kong em loop após reboot/rescale (exit 126 → "expected an object")
+
+**Quando:** 2026-05-31, após rescale da VPS na Hetzner (CPX51 → CCX33), que **reinicia o servidor**. No Coolify o **app ficou verde**, mas a **Service Supabase ficou "Degraded (unhealthy)"** com o **Kong em "Restarting"**. **Não era** RAM/CPU/disco/dados — disco 41% livre, RAM 23 GB livre, Postgres `healthy`, dados intactos.
+
+**Causa-raiz:** dois arquivos que o **Coolify gera** para o Kong em `/data/coolify/services/<id>/volumes/api/` estavam com permissão restrita **`-rwx------` (dono UID 9999)**, mas o container Kong roda com **outro usuário** (não-root). O reboot recriou os containers e expôs isso. Eram dois erros encadeados:
+
+1. **`kong-entrypoint.sh`** → Kong não conseguia **executar** → `/bin/bash: /home/kong/kong-entrypoint.sh: Permission denied` → **exit 126**.
+2. **`kong.yml`** (montado como `/home/kong/temp.yml`) → depois de corrigir o #1, o `awk` do entrypoint não conseguia **ler** o template → gerava `/usr/local/kong/kong.yml` **vazio (0 bytes)** → Kong: `failed parsing declarative configuration: expected an object`. Sinal no log: `awk: cannot open "/home/kong/temp.yml" (Permission denied)`.
+
+**Afetava os 3 projetos Supabase** do servidor (todos os Kong em `Restarting`), não só o geladinho.
+
+**Diagnóstico:**
+```bash
+docker logs supabase-kong-rtnlbe2fqtlotqdpyufwgwes --tail 30   # mostra a mensagem de erro
+ls -la /data/coolify/services/*/volumes/api/                   # mostra -rwx------ 9999
+```
+
+**Fix aplicado** (não-destrutivo, não toca em dado nenhum):
+```bash
+chmod 755 /data/coolify/services/*/volumes/api/kong-entrypoint.sh   # +leitura/execução
+chmod a+r  /data/coolify/services/*/volumes/api/kong.yml            # +leitura
+docker restart supabase-kong-rtnlbe2fqtlotqdpyufwgwes \
+               supabase-kong-d12z3xfv76805chozgifcveg \
+               supabase-kong-x12boyd0plbaodcuy7kev5ly
+```
+Liberar leitura do `kong.yml` é **seguro**: no host ele é só o template com placeholders `$VAR` — a substituição pelos valores reais (chaves) acontece em runtime, dentro do container.
+
+**⚠️ Pode reaparecer** se fizer **"Redeploy"** da Service Supabase no Coolify (regenera esses arquivos com `-rwx------`). Restart simples ou reboot **não** deve repetir. Se voltar, é o mesmo fix de uma linha acima.
+
+**Como confirmar que voltou:** `docker ps` mostra `supabase-kong-* ... Up (healthy)`; e o `curl` da API sai de **503** (gateway caído) para **401/200** (gateway no ar, exigindo apikey — comportamento normal):
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" https://geladinho-api-5-78-42-251.sslip.io/rest/v1/   # 401 = ok
+```
 
 ---
 
